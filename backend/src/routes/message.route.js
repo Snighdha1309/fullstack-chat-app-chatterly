@@ -1,5 +1,5 @@
 import express from "express";
-import {getUsersForSidebar,sendMessage,getMessages} from "../controllers/message.controlller.js";
+import {getUsersForSidebar,sendMessage,getMessages} from "../controllers/message.controller.js";
 import {protectRoute} from "../middleware/auth.middleware.js" 
 const router = express.Router();
 router.get("/users",protectRoute,getUsersForSidebar);
