@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useChatStore } from "../store/useChatStore";
+import { formatMessageTime } from "../lib/utils";
 
 import { useAuthStore } from "../store/useAuthStore";
 import ChatHeader from "./ChatHeader";
