@@ -3,14 +3,14 @@ import toast from "react-hot-toast";
 import { axiosInstance } from "../lib/axios";
 import { useAuthStore } from "./useAuthStore";
 
-// ✅ Load selectedUser from localStorage if available
+// Load selectedUser from localStorage
 const storedUser = localStorage.getItem("selectedUser");
 const initialSelectedUser = storedUser ? JSON.parse(storedUser) : null;
 
 export const useChatStore = create((set, get) => ({
   messages: [],
   users: [],
-  selectedUser: initialSelectedUser, // ✅ Set default from localStorage
+  selectedUser: initialSelectedUser,
   isUsersLoading: false,
   isMessagesLoading: false,
 
@@ -20,7 +20,7 @@ export const useChatStore = create((set, get) => ({
       const res = await axiosInstance.get("/messages/users");
       set({ users: res.data });
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Failed to fetch users.");
     } finally {
       set({ isUsersLoading: false });
     }
@@ -54,23 +54,33 @@ export const useChatStore = create((set, get) => ({
     if (!selectedUser) return;
 
     const socket = useAuthStore.getState().socket;
+    if (!socket) return;
+
+    // Prevent duplicate listeners
+    socket.off("newMessage");
 
     socket.on("newMessage", (newMessage) => {
-      const isMessageSentFromSelectedUser = newMessage.senderId === selectedUser._id;
-      if (!isMessageSentFromSelectedUser) return;
+      const currentSelectedUser = get().selectedUser;
 
-      set({
-        messages: [...get().messages, newMessage],
-      });
+      const isRelevantMessage =
+        newMessage.senderId === currentSelectedUser?._id ||
+        newMessage.receiverId === currentSelectedUser?._id;
+
+      if (!isRelevantMessage) return;
+
+      set((state) => ({
+        messages: [...state.messages, newMessage],
+      }));
     });
   },
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
-    socket.off("newMessage");
+    if (socket) {
+      socket.off("newMessage");
+    }
   },
 
-  // ✅ Save selected user to localStorage when changed
   setSelectedUser: (selectedUser) => {
     if (selectedUser) {
       localStorage.setItem("selectedUser", JSON.stringify(selectedUser));
@@ -78,5 +88,11 @@ export const useChatStore = create((set, get) => ({
       localStorage.removeItem("selectedUser");
     }
     set({ selectedUser });
+
+    // Optional: fetch messages immediately when selectedUser is set
+    if (selectedUser?._id) {
+      get().getMessages(selectedUser._id);
+      get().subscribeToMessages();
+    }
   },
 }));
