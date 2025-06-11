@@ -1,9 +1,9 @@
 import Message from "../models/message.model.js";
 import User from "../models/user.model.js";
-
 import cloudinary from "../lib/cloudinary.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
 
+// ✅ Get all users except the logged-in user for sidebar
 export const getUsersForSidebar = async (req, res) => {
   try {
     const loggedInUserId = req.user._id;
@@ -11,11 +11,12 @@ export const getUsersForSidebar = async (req, res) => {
 
     res.status(200).json(filteredUsers);
   } catch (error) {
-    console.error("Error in getUsersForSidebar: ", error.message);
+    console.error("❌ Error in getUsersForSidebar:", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
+// ✅ Get chat messages between logged-in user and another user
 export const getMessages = async (req, res) => {
   try {
     const { id: userToChatId } = req.params;
@@ -30,24 +31,25 @@ export const getMessages = async (req, res) => {
 
     res.status(200).json(messages);
   } catch (error) {
-    console.log("Error in getMessages controller: ", error.message);
+    console.log("❌ Error in getMessages controller:", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
+// ✅ Send a message (text or image) from logged-in user to receiver
 export const sendMessage = async (req, res) => {
   try {
     const { text, image } = req.body;
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
+
     if (!text && !image) {
       return res.status(400).json({ error: "Message must contain text or image" });
     }
 
-
     let imageUrl;
     if (image) {
-      // Upload base64 image to cloudinary
+      // Upload base64 image to Cloudinary
       const uploadResponse = await cloudinary.uploader.upload(image);
       imageUrl = uploadResponse.secure_url;
     }
@@ -61,14 +63,18 @@ export const sendMessage = async (req, res) => {
 
     await newMessage.save();
 
+    // ✅ Debug logs
+    console.log("✅ [SERVER] Message saved:", newMessage._id);
     const receiverSocketId = getReceiverSocketId(receiverId);
+    console.log("🌐 [SERVER] Emitting to socketId:", receiverSocketId);
+
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("newMessage", newMessage);
     }
 
     res.status(201).json(newMessage);
   } catch (error) {
-    console.log("Error in sendMessage controller: ", error.message);
+    console.log("❌ Error in sendMessage controller:", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
