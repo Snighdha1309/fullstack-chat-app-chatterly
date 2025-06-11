@@ -9,31 +9,24 @@ import MessageSkeleton from "./skeletons/MessageSkeleton";
 const ChatContainer = () => {
   const {
     messages,
-    getMessages,
     isMessagesLoading,
     selectedUser,
-    subscribeToMessages,
-    unsubscribeFromMessages,
+    setSelectedUser,
   } = useChatStore();
-
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
 
-  // Subscribe to new messages on mount/unmount or when selectedUser changes
+  // Load selectedUser from localStorage on mount
   useEffect(() => {
-    if (!selectedUser?._id) return;
+    const savedUser = localStorage.getItem("selectedUser");
+    if (savedUser && !selectedUser) {
+      setSelectedUser(JSON.parse(savedUser));
+    }
+  }, [selectedUser, setSelectedUser]);
 
-    getMessages(selectedUser._id);
-    subscribeToMessages();
-
-    return () => {
-      unsubscribeFromMessages();
-    };
-  }, [selectedUser?._id]);
-
-  // Auto-scroll to bottom on new messages
+  // Scroll to last message
   useEffect(() => {
-    if (messageEndRef.current) {
+    if (messageEndRef.current && messages) {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
@@ -61,13 +54,13 @@ const ChatContainer = () => {
                 m.createdAt &&
                 !isNaN(new Date(m.createdAt))
             )
-            .map((message, index) => (
+            .map((message) => (
               <div
                 key={message._id}
                 className={`chat ${
                   message.senderId === authUser._id ? "chat-end" : "chat-start"
                 }`}
-                ref={index === messages.length - 1 ? messageEndRef : null}
+                ref={messageEndRef}
               >
                 <div className="chat-image avatar">
                   <div className="size-10 rounded-full border">

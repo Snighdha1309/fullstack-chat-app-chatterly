@@ -49,22 +49,15 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  subscribeToMessages: () => {
-    const { selectedUser } = get();
-    if (!selectedUser) return;
-
+  subscribeToMessages: (userId) => {
     const socket = useAuthStore.getState().socket;
-    if (!socket) return;
+    if (!socket || !userId) return;
 
-    // Prevent duplicate listeners
-    socket.off("newMessage");
+    socket.off("newMessage"); // remove existing listener
 
     socket.on("newMessage", (newMessage) => {
-      const currentSelectedUser = get().selectedUser;
-
       const isRelevantMessage =
-        newMessage.senderId === currentSelectedUser?._id ||
-        newMessage.receiverId === currentSelectedUser?._id;
+        newMessage.senderId === userId || newMessage.receiverId === userId;
 
       if (!isRelevantMessage) return;
 
@@ -81,18 +74,18 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  setSelectedUser: (selectedUser) => {
+  setSelectedUser: async (selectedUser) => {
     if (selectedUser) {
       localStorage.setItem("selectedUser", JSON.stringify(selectedUser));
     } else {
       localStorage.removeItem("selectedUser");
     }
+
     set({ selectedUser });
 
-    // Optional: fetch messages immediately when selectedUser is set
     if (selectedUser?._id) {
-      get().getMessages(selectedUser._id);
-      get().subscribeToMessages();
+      await get().getMessages(selectedUser._id);
+      get().subscribeToMessages(selectedUser._id);
     }
   },
 }));
