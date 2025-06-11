@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { axiosInstance } from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
-import { useChatStore } from "../store/useChatStore"; // adjust path based on file location
+import { useChatStore } from "../store/useChatStore"; // Adjust path if needed
 
 const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
 
@@ -74,7 +74,7 @@ export const useAuthStore = create((set, get) => ({
       set({ authUser: res.data });
       toast.success("Profile updated successfully");
     } catch (error) {
-      console.log("error in update profile:", error);
+      console.log("Error in updateProfile:", error);
       toast.error(error.response?.data?.message || "Update failed");
     } finally {
       set({ isUpdatingProfile: false });
@@ -94,6 +94,12 @@ export const useAuthStore = create((set, get) => ({
 
     newSocket.on("connect", () => {
       console.log("✅ Socket connected:", newSocket.id);
+
+      // Resubscribe to messages after reconnect
+      const { selectedUser, subscribeToMessages } = useChatStore.getState();
+      if (selectedUser?._id) {
+        subscribeToMessages();
+      }
     });
 
     newSocket.on("disconnect", () => {
@@ -106,14 +112,6 @@ export const useAuthStore = create((set, get) => ({
 
     newSocket.on("getOnlineUsers", (userIds) => {
       set({ onlineUsers: userIds });
-    });
-
-    // Optional: Resubscribe to messages after reconnect
-    newSocket.on("connect", () => {
-      const { selectedUser, subscribeToMessages } = useChatStore.getState();
-      if (selectedUser?._id) {
-        subscribeToMessages();
-      }
     });
 
     set({ socket: newSocket });
