@@ -29,21 +29,35 @@ const SignUpPage = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    const success = validateForm();
-    if (success !== true) return;
+  const success = validateForm();
+  if (success !== true) return;
 
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-      console.log("Firebase signup success:", userCredential.user);
-      if(userCredential){toast.success("Signup successful!");}
-      // Optional: sync with your store or DB using signup(formData);
-    } catch (error) {
-      console.error("Firebase signup error:", error.message);
-      toast.error(error.message);
-    }
-  };
+  try {
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      formData.email,
+      formData.password
+    );
+
+    const user = userCredential.user;
+
+    // Send verification email
+    await user.sendEmailVerification();
+
+    toast.success("Signup successful! Please verify your email before logging in.");
+    console.log("Verification email sent to:", user.email);
+
+    // Optionally, sign out the user immediately to prevent unverified access
+    await auth.signOut();
+
+  } catch (error) {
+    console.error("Firebase signup error:", error.message);
+    toast.error(error.message);
+  }
+};
+
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
