@@ -2,11 +2,13 @@ import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../lib/firebaseconfig.js";
 import AuthImagePattern from "../components/AuthImagePattern";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // ✅ added useNavigate
 import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare } from "lucide-react";
 import toast from "react-hot-toast";
 
 const LoginPage = () => {
+  const navigate = useNavigate(); // ✅ for redirection
+
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
@@ -15,37 +17,37 @@ const LoginPage = () => {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setIsLoggingIn(true);
+    e.preventDefault();
+    setIsLoggingIn(true);
 
-  const { email, password } = formData;
+    const { email, password } = formData;
 
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-    if (!user.emailVerified) {
-      toast.error("Please verify your email before logging in.");
+      if (!user.emailVerified) {
+        toast.error("Please verify your email before logging in.");
+        setIsLoggingIn(false);
+        return;
+      }
+
+      toast.success("Login successful!");
+      navigate("/"); // ✅ redirect after login (change path if needed)
+    } catch (error) {
+      if (error.code === "auth/user-not-found") {
+        toast.error("User not found.");
+      } else if (error.code === "auth/wrong-password") {
+        toast.error("Incorrect password.");
+      } else {
+        toast.error(error.message);
+      }
+    } finally {
       setIsLoggingIn(false);
-      return;
     }
+  };
 
-    toast.success("Login successful!");
-    // Navigate or store user info as needed
-  } catch (error) {
-    if (error.code === "auth/user-not-found") {
-      toast.error("User not found.");
-    } else if (error.code === "auth/wrong-password") {
-      toast.error("Incorrect password.");
-    } else {
-      toast.error(error.message);
-    }
-  } finally {
-    setIsLoggingIn(false);
-  }
-};
-
-return (
+  return (
     <div className="h-screen grid lg:grid-cols-2">
       {/* Left Side - Form */}
       <div className="flex flex-col justify-center items-center p-6 sm:p-12">
@@ -53,10 +55,7 @@ return (
           {/* Logo */}
           <div className="text-center mb-8">
             <div className="flex flex-col items-center gap-2 group">
-              <div
-                className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20
-              transition-colors"
-              >
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                 <MessageSquare className="w-6 h-6 text-primary" />
               </div>
               <h1 className="text-2xl font-bold mt-2">Welcome Back</h1>
@@ -76,7 +75,7 @@ return (
                 </div>
                 <input
                   type="email"
-                  className={`input input-bordered w-full pl-10`}
+                  className="input input-bordered w-full pl-10"
                   placeholder="you@example.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -94,7 +93,7 @@ return (
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
-                  className={`input input-bordered w-full pl-10`}
+                  className="input input-bordered w-full pl-10"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
