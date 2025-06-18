@@ -1,3 +1,4 @@
+// src/pages/LoginPage.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare } from "lucide-react";
@@ -9,32 +10,28 @@ import { Link } from "react-router-dom";
 const LoginPage = () => {
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
-
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
+  const [formData, setFormData] = useState({ email: "", password: "" });
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoggingIn(true);
 
-    try {
-      await login(formData); // Calls Zustand store's login method
+    const result = await login(formData);
+
+    if (result.success) {
       toast.success("Login successful!");
-      navigate("/"); // Redirect to homepage
-    } catch (error) {
-      toast.error("Login failed.");
-    } finally {
-      setIsLoggingIn(false);
+      navigate("/");
+    } else {
+      toast.error(result.message);
     }
+
+    setIsLoggingIn(false);
   };
 
   return (
     <div className="h-screen grid lg:grid-cols-2">
-      {/* Left Side - Form */}
       <div className="flex flex-col justify-center items-center p-6 sm:p-12">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center mb-8">
@@ -118,7 +115,6 @@ const LoginPage = () => {
         </div>
       </div>
 
-      {/* Right Side - Image/Pattern */}
       <AuthImagePattern
         title={"Welcome back!"}
         subtitle={"Sign in to continue your conversations and catch up with your messages."}
