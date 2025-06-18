@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 
 // Firebase imports
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../utils/firebaseconfig.js";
+import { auth } from "../lib/firebaseconfig.js";
 
 const SignUpPage = () => {
   const [showPassword, setShowPassword] = useState(false);
