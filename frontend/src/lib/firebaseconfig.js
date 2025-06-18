@@ -1,15 +1,13 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+
+
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// Only use analytics in browser (not during SSR or build)
+let analytics;
+
 const firebaseConfig = {
-  apiKey: "AIzaSyDOs9fCDArxLlpVHNQ89KgOecEd5Z-H6Ds",
+   apiKey: "AIzaSyDOs9fCDArxLlpVHNQ89KgOecEd5Z-H6Ds",
   authDomain: "emailauthchatterly.firebaseapp.com",
   projectId: "emailauthchatterly",
   storageBucket: "emailauthchatterly.firebasestorage.app",
@@ -20,4 +18,13 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+const auth = getAuth(app);
+
+// Optional: load analytics only in browser
+if (typeof window !== "undefined") {
+  import("firebase/analytics").then(({ getAnalytics }) => {
+    analytics = getAnalytics(app);
+  });
+}
+
+export { auth };
