@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../lib/firebaseconfig.js";
-import AuthImagePattern from "../components/AuthImagePattern";
-import { Link, useNavigate } from "react-router-dom"; // ✅ added useNavigate
+import { auth } from "./lib/firebaseconfig.js";
+import AuthImagePattern from "./components/AuthImagePattern";
+import { Link, useNavigate } from "react-router-dom"; // ✅ import navigate
 import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare } from "lucide-react";
 import toast from "react-hot-toast";
+import { useAuthStore } from "./store/useAuthStore"; // ✅ import auth store
 
 const LoginPage = () => {
-  const navigate = useNavigate(); // ✅ for redirection
+  const navigate = useNavigate();
+  const setAuthUser = useAuthStore((state) => state.setAuthUser); // ✅ Zustand setter
 
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -32,8 +34,16 @@ const LoginPage = () => {
         return;
       }
 
+      // ✅ Set global auth user in Zustand store
+      setAuthUser({
+        email: user.email,
+        uid: user.uid,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+      });
+
       toast.success("Login successful!");
-      navigate("/"); // ✅ redirect after login (change path if needed)
+      navigate("/"); // ✅ Redirect to home
     } catch (error) {
       if (error.code === "auth/user-not-found") {
         toast.error("User not found.");
@@ -55,7 +65,9 @@ const LoginPage = () => {
           {/* Logo */}
           <div className="text-center mb-8">
             <div className="flex flex-col items-center gap-2 group">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <div
+                className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors"
+              >
                 <MessageSquare className="w-6 h-6 text-primary" />
               </div>
               <h1 className="text-2xl font-bold mt-2">Welcome Back</h1>
