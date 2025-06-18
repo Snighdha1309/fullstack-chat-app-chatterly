@@ -1,8 +1,8 @@
+// src/store/useAuthStore.js
 import { create } from "zustand";
 import { axiosInstance } from "../lib/axios.js";
-import toast from "react-hot-toast";
 import { io } from "socket.io-client";
-import { useChatStore } from "../store/useChatStore"; // Adjust path if needed
+import { useChatStore } from "./useChatStore"; // Adjust path if needed
 
 const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
 
@@ -33,10 +33,13 @@ export const useAuthStore = create((set, get) => ({
     try {
       const res = await axiosInstance.post("/auth/signup", data);
       set({ authUser: res.data });
-      toast.success("Account created successfully");
       get().connectSocket();
+      return { success: true };
     } catch (error) {
-      toast.error(error.response?.data?.message || "Signup failed");
+      return {
+        success: false,
+        message: error.response?.data?.message || "Signup failed",
+      };
     } finally {
       set({ isSigningUp: false });
     }
@@ -47,10 +50,13 @@ export const useAuthStore = create((set, get) => ({
     try {
       const res = await axiosInstance.post("/auth/login", data);
       set({ authUser: res.data });
-      toast.success("Logged in successfully");
       get().connectSocket();
+      return { success: true };
     } catch (error) {
-      toast.error(error.response?.data?.message || "Login failed");
+      return {
+        success: false,
+        message: error.response?.data?.message || "Login failed",
+      };
     } finally {
       set({ isLoggingIn: false });
     }
@@ -61,9 +67,12 @@ export const useAuthStore = create((set, get) => ({
       await axiosInstance.post("/auth/logout");
       get().disconnectSocket();
       set({ authUser: null });
-      toast.success("Logged out successfully");
+      return { success: true };
     } catch (error) {
-      toast.error(error.response?.data?.message || "Logout failed");
+      return {
+        success: false,
+        message: error.response?.data?.message || "Logout failed",
+      };
     }
   },
 
@@ -72,10 +81,12 @@ export const useAuthStore = create((set, get) => ({
     try {
       const res = await axiosInstance.put("/auth/update-profile", data);
       set({ authUser: res.data });
-      toast.success("Profile updated successfully");
+      return { success: true };
     } catch (error) {
-      console.log("Error in updateProfile:", error);
-      toast.error(error.response?.data?.message || "Update failed");
+      return {
+        success: false,
+        message: error.response?.data?.message || "Update failed",
+      };
     } finally {
       set({ isUpdatingProfile: false });
     }
@@ -94,8 +105,6 @@ export const useAuthStore = create((set, get) => ({
 
     newSocket.on("connect", () => {
       console.log("✅ Socket connected:", newSocket.id);
-
-      // Resubscribe to messages after reconnect
       const { selectedUser, subscribeToMessages } = useChatStore.getState();
       if (selectedUser?._id) {
         subscribeToMessages();
