@@ -37,7 +37,7 @@ const SignUpPage = () => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
       console.log("Firebase signup success:", userCredential.user);
-      toast.success("Signup successful!");
+      if(userCredential){toast.success("Signup successful!");}
       // Optional: sync with your store or DB using signup(formData);
     } catch (error) {
       console.error("Firebase signup error:", error.message);
