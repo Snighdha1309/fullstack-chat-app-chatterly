@@ -5,10 +5,6 @@ import { Link } from "react-router-dom";
 import AuthImagePattern from "../components/AuthImagePattern";
 import toast from "react-hot-toast";
 import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
-
-
-// Firebase imports
-import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../lib/firebaseconfig.js";
 
 const SignUpPage = () => {
