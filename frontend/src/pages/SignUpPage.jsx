@@ -4,6 +4,8 @@ import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare, User } from "lucide-re
 import { Link } from "react-router-dom";
 import AuthImagePattern from "../components/AuthImagePattern";
 import toast from "react-hot-toast";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
+
 
 // Firebase imports
 import { createUserWithEmailAndPassword } from "firebase/auth";
@@ -28,35 +30,32 @@ const SignUpPage = () => {
     return true;
   };
 
-  const handleSubmit = async (e) => {
-  e.preventDefault();
 
-  const success = validateForm();
-  if (success !== true) return;
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  const isValid = validateForm();
+  if (!isValid) return;
 
   try {
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      formData.email,
-      formData.password
-    );
-
+    const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
     const user = userCredential.user;
 
-    // Send verification email
-    await user.sendEmailVerification();
+    await sendEmailVerification(user);
+    toast.success("Signup successful! Check your email to verify your account.");
 
-    toast.success("Signup successful! Please verify your email before logging in.");
-    console.log("Verification email sent to:", user.email);
-
-    // Optionally, sign out the user immediately to prevent unverified access
-    await auth.signOut();
+    // Optional: redirect to login
+    // navigate("/login");
 
   } catch (error) {
-    console.error("Firebase signup error:", error.message);
-    toast.error(error.message);
+    if (error.code === "auth/email-already-in-use") {
+      toast.error("Email is already in use. Try signing in.");
+    } else {
+      toast.error(error.message);
+    }
+    console.error("Signup error:", error);
   }
 };
+
 
 
   return (

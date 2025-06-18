@@ -14,26 +14,31 @@ const LoginPage = () => {
   });
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const { email, password } = formData;
+  const handleLogin = async (e) => {
+  e.preventDefault();
 
-    if (!email.trim()) return toast.error("Email is required");
-    if (!password) return toast.error("Password is required");
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
 
-    setIsLoggingIn(true);
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      console.log("Logged in:", user);
-      toast.success("Logged in successfully");
-    } catch (error) {
-      console.error("Login Error:", error.message);
-      toast.error(error.message);
-    } finally {
-      setIsLoggingIn(false);
+    if (!user.emailVerified) {
+      toast.error("Please verify your email before logging in.");
+      return;
     }
-  };
+
+    toast.success("Login successful!");
+    // proceed to redirect or store user
+  } catch (error) {
+    if (error.code === "auth/user-not-found") {
+      toast.error("User not found.");
+    } else if (error.code === "auth/wrong-password") {
+      toast.error("Incorrect password.");
+    } else {
+      toast.error(error.message);
+    }
+  }
+};
+
 
   return (
     <div className="h-screen grid lg:grid-cols-2">
