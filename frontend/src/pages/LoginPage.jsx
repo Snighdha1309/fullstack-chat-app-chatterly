@@ -16,6 +16,9 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
   e.preventDefault();
+  setIsLoggingIn(true);
+
+  const { email, password } = formData;
 
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -23,11 +26,12 @@ const LoginPage = () => {
 
     if (!user.emailVerified) {
       toast.error("Please verify your email before logging in.");
+      setIsLoggingIn(false);
       return;
     }
 
     toast.success("Login successful!");
-    // proceed to redirect or store user
+    // Navigate or store user info as needed
   } catch (error) {
     if (error.code === "auth/user-not-found") {
       toast.error("User not found.");
@@ -36,8 +40,11 @@ const LoginPage = () => {
     } else {
       toast.error(error.message);
     }
+  } finally {
+    setIsLoggingIn(false);
   }
 };
+
 return (
     <div className="h-screen grid lg:grid-cols-2">
       {/* Left Side - Form */}
