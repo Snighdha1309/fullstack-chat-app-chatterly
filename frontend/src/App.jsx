@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "./lib/firebaseconfig.js";
-import AuthImagePattern from "../components/AuthImagePattern";
+import AuthImagePattern from "./components/AuthImagePattern";
 import { Link, useNavigate } from "react-router-dom"; // ✅ import navigate
 import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare } from "lucide-react";
 import toast from "react-hot-toast";
-import { useAuthStore } from "../store/useAuthStore"; // ✅ import auth store
+import { useAuthStore } from "./store/useAuthStore"; // ✅ import auth store
 
 const LoginPage = () => {
   const navigate = useNavigate();
