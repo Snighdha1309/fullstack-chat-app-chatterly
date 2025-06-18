@@ -14,7 +14,7 @@ const LoginPage = () => {
   });
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const handleLogin = async (e) => {
+  const handleSubmit = async (e) => {
   e.preventDefault();
 
   try {
@@ -38,9 +38,7 @@ const LoginPage = () => {
     }
   }
 };
-
-
-  return (
+return (
     <div className="h-screen grid lg:grid-cols-2">
       {/* Left Side - Form */}
       <div className="flex flex-col justify-center items-center p-6 sm:p-12">
