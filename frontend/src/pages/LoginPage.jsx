@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { useAuthStore } from "../store/useAuthStore";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../utils/firebase";
 import AuthImagePattern from "../components/AuthImagePattern";
 import { Link } from "react-router-dom";
 import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare } from "lucide-react";
+import toast from "react-hot-toast";
 
 const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -10,11 +12,27 @@ const LoginPage = () => {
     email: "",
     password: "",
   });
-  const { login, isLoggingIn } = useAuthStore();
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    login(formData);
+    const { email, password } = formData;
+
+    if (!email.trim()) return toast.error("Email is required");
+    if (!password) return toast.error("Password is required");
+
+    setIsLoggingIn(true);
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      console.log("Logged in:", user);
+      toast.success("Logged in successfully");
+    } catch (error) {
+      console.error("Login Error:", error.message);
+      toast.error(error.message);
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   return (
@@ -116,4 +134,5 @@ const LoginPage = () => {
     </div>
   );
 };
+
 export default LoginPage;
