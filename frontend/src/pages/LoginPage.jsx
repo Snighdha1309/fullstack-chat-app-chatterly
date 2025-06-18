@@ -1,15 +1,14 @@
 import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../lib/firebaseconfig.js";
-import AuthImagePattern from "../components/AuthImagePattern";
-import { Link, useNavigate } from "react-router-dom"; // ✅ import navigate
+import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare } from "lucide-react";
 import toast from "react-hot-toast";
-import { useAuthStore } from "../store/useAuthStore"; // ✅ import auth store
+import { useAuthStore } from "../store/useAuthStore";
+import AuthImagePattern from "../components/AuthImagePattern";
+import { Link } from "react-router-dom";
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const setAuthUser = useAuthStore((state) => state.setAuthUser); // ✅ Zustand setter
+  const login = useAuthStore((state) => state.login);
 
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -22,36 +21,12 @@ const LoginPage = () => {
     e.preventDefault();
     setIsLoggingIn(true);
 
-    const { email, password } = formData;
-
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      if (!user.emailVerified) {
-        toast.error("Please verify your email before logging in.");
-        setIsLoggingIn(false);
-        return;
-      }
-
-      // ✅ Set global auth user in Zustand store
-      setAuthUser({
-        email: user.email,
-        uid: user.uid,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-      });
-
+      await login(formData); // Calls Zustand store's login method
       toast.success("Login successful!");
-      navigate("/"); // ✅ Redirect to home
+      navigate("/"); // Redirect to homepage
     } catch (error) {
-      if (error.code === "auth/user-not-found") {
-        toast.error("User not found.");
-      } else if (error.code === "auth/wrong-password") {
-        toast.error("Incorrect password.");
-      } else {
-        toast.error(error.message);
-      }
+      toast.error("Login failed.");
     } finally {
       setIsLoggingIn(false);
     }
@@ -62,12 +37,9 @@ const LoginPage = () => {
       {/* Left Side - Form */}
       <div className="flex flex-col justify-center items-center p-6 sm:p-12">
         <div className="w-full max-w-md space-y-8">
-          {/* Logo */}
           <div className="text-center mb-8">
             <div className="flex flex-col items-center gap-2 group">
-              <div
-                className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors"
-              >
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                 <MessageSquare className="w-6 h-6 text-primary" />
               </div>
               <h1 className="text-2xl font-bold mt-2">Welcome Back</h1>
@@ -75,7 +47,6 @@ const LoginPage = () => {
             </div>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="form-control">
               <label className="label">
