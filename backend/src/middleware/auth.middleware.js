@@ -1,31 +1,73 @@
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
+import createHttpError from "http-errors";
 
+// Token verification middleware
 export const protectRoute = async (req, res, next) => {
   try {
-    const token = req.cookies.jwt;
-
+    // 1. Get token from cookies or Authorization header
+    const token = req.cookies?.token || req.headers.authorization?.split(' ')[1];
+    
     if (!token) {
-      return res.status(401).json({ message: "Unauthorized - No Token Provided" });
+      throw createHttpError(401, 'Unauthorized - No authentication token provided');
     }
 
+    // 2. Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    if (!decoded) {
-      return res.status(401).json({ message: "Unauthorized - Invalid Token" });
+    
+    // 3. Check if user still exists
+    const currentUser = await User.findById(decoded.userId).select('+passwordChangedAt');
+    if (!currentUser) {
+      throw createHttpError(401, 'Unauthorized - User no longer exists');
     }
 
-    const user = await User.findById(decoded.userId).select("-password");
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+    // 4. Check if user changed password after token was issued
+    if (currentUser.changedPasswordAfter(decoded.iat)) {
+      throw createHttpError(401, 'Unauthorized - Password was changed recently');
     }
 
-    req.user = user;
-
+    // 5. Grant access
+    req.user = currentUser;
     next();
+
   } catch (error) {
-    console.log("Error in protectRoute middleware: ", error.message);
-    res.status(500).json({ message: "Internal server error" });
+    // Handle specific JWT errors
+    if (error.name === 'JsonWebTokenError') {
+      error = createHttpError(401, 'Unauthorized - Invalid token');
+    } else if (error.name === 'TokenExpiredError') {
+      error = createHttpError(401, 'Unauthorized - Token expired');
+    }
+
+    // Clear invalid token cookie
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict'
+    });
+
+    next(error);
   }
+};
+
+// Role-based authorization middleware
+export const restrictTo = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return next(
+        createHttpError(403, 'Forbidden - You do not have permission')
+      );
+    }
+    next();
+  };
+};
+
+// CSRF protection middleware (optional)
+export const csrfProtection = (req, res, next) => {
+  if (req.method !== 'GET') {
+    const csrfToken = req.headers['x-csrf-token'] || req.body._csrf;
+    if (!csrfToken || csrfToken !== req.csrfToken()) {
+      return next(createHttpError(403, 'Invalid CSRF token'));
+    }
+  }
+  next();
 };
