@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { formatMessageTime, groupMessagesByDate } from "../lib/utils";
 import { useAuthStore } from "../store/useAuthStore";
@@ -6,7 +6,6 @@ import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
 import socket from "../lib/socketclient";
-import { useToast } from "../hooks/useToast";
 
 const ChatContainer = () => {
   const {
@@ -19,7 +18,7 @@ const ChatContainer = () => {
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
-  const { toast } = useToast();
+  const [error, setError] = useState(null);
 
   // Initialize socket and message listeners
   useEffect(() => {
@@ -43,7 +42,8 @@ const ChatContainer = () => {
 
     // Error handling
     socket.on("connect_error", (err) => {
-      toast.error("Connection error: " + err.message);
+      setError(`Connection error: ${err.message}`);
+      setTimeout(() => setError(null), 5000); // Auto-dismiss after 5 seconds
     });
 
     return () => {
@@ -52,7 +52,7 @@ const ChatContainer = () => {
         socket.disconnect();
       }
     };
-  }, [authUser?._id, selectedUser?._id, addMessage, toast]);
+  }, [authUser?._id, selectedUser?._id, addMessage]);
 
   // Load selectedUser from localStorage safely
   useEffect(() => {
@@ -63,6 +63,7 @@ const ChatContainer = () => {
       } catch (err) {
         console.error("Failed to parse selectedUser", err);
         localStorage.removeItem("selectedUser");
+        setError("Failed to load conversation");
       }
     }
   }, [selectedUser, setSelectedUser]);
@@ -104,6 +105,19 @@ const ChatContainer = () => {
 
   return (
     <div className="flex-1 flex flex-col overflow-auto">
+      {/* Error Notification */}
+      {error && (
+        <div className="fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-md shadow-lg z-50">
+          {error}
+          <button 
+            onClick={() => setError(null)}
+            className="ml-2 font-bold"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <ChatHeader />
 
       <div
