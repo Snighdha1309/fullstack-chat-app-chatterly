@@ -7,7 +7,6 @@ import {
   updateProfile,
   handleFirebaseSignup,
   handleFirebaseLogin,
-  getUserProfile,
   updateUser
 } from "../controllers/auth.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
@@ -77,7 +76,7 @@ router.post("/logout", logout);
 
 // User Profile Routes
 router.route("/profile")
-  .get(protectRoute, getUserProfile)
+  .get(protectRoute, checkAuth)
   .put(protectRoute, updateProfile);
 
 // Admin Routes
