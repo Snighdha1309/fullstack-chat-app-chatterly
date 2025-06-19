@@ -3,42 +3,66 @@ import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js";
 
+// Constants
+const PASSWORD_MIN_LENGTH = 6;
+const SALT_ROUNDS = 10;
+
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
 
   try {
-    if (!fullName || !email || !password) {
-      return res.status(400).json({ message: "All fields are required" });
+    // Validation
+    if (!fullName?.trim() || !email?.trim() || !password) {
+      return res.status(400).json({ 
+        success: false,
+        message: "All fields are required" 
+      });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    if (password.length < PASSWORD_MIN_LENGTH) {
+      return res.status(400).json({ 
+        success: false,
+        message: `Password must be at least ${PASSWORD_MIN_LENGTH} characters` 
+      });
     }
 
-    const existingUser = await User.findOne({ email });
+    // Check existing user
+    const normalizedEmail = email.toLowerCase().trim();
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
-      return res.status(400).json({ message: "Email already exists" });
+      return res.status(409).json({ 
+        success: false,
+        message: "Email already exists" 
+      });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Create user
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     const newUser = new User({
-      fullName,
-      email,
+      fullName: fullName.trim(),
+      email: normalizedEmail,
       password: hashedPassword,
     });
 
     await newUser.save();
-    generateToken(newUser._id, res);
+    
+    // Generate token and set cookie
+    const token = generateToken(newUser._id);
+    setAuthCookie(res, token);
 
+    // Response
     res.status(201).json({
-      _id: newUser._id,
-      fullName: newUser.fullName,
-      email: newUser.email,
-      profilePic: newUser.profilePic,
+      success: true,
+      user: filterUserData(newUser),
+      token // Optional: For clients that prefer header-based auth
     });
+
   } catch (error) {
-    console.error("Error in signup controller:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Signup error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Internal server error" 
+    });
   }
 };
 
@@ -46,41 +70,71 @@ export const login = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email });
+    // Validation
+    if (!email?.trim() || !password) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Email and password are required" 
+      });
+    }
+
+    // Find user
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
-      return res.status(401).json({ message: "Invalid credentials" }); // 401 = Unauthorized
+      return res.status(401).json({ 
+        success: false,
+        message: "Invalid credentials" 
+      });
     }
 
-    const isPasswordCorrect = await bcrypt.compare(password, user.password);
-    if (!isPasswordCorrect) {
-      return res.status(401).json({ message: "Invalid credentials" });
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ 
+        success: false,
+        message: "Invalid credentials" 
+      });
     }
 
-    generateToken(user._id, res);
+    // Generate token and set cookie
+    const token = generateToken(user._id);
+    setAuthCookie(res, token);
 
+    // Response
     res.status(200).json({
-      _id: user._id,
-      fullName: user.fullName,
-      email: user.email,
-      profilePic: user.profilePic,
+      success: true,
+      user: filterUserData(user),
+      token // Optional: For clients that prefer header-based auth
     });
+
   } catch (error) {
-    console.error("Error in login controller:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Login error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Internal server error" 
+    });
   }
 };
 
 export const logout = (req, res) => {
   try {
-    res.clearCookie("jwt", {
+    res.clearCookie("token", {
       httpOnly: true,
       sameSite: "strict",
-      secure: process.env.NODE_ENV !== "development",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
     });
-    res.status(200).json({ message: "Logged out successfully" });
+    res.status(200).json({ 
+      success: true,
+      message: "Logged out successfully" 
+    });
   } catch (error) {
-    console.error("Error in logout controller:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Logout error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Internal server error" 
+    });
   }
 };
 
@@ -90,28 +144,71 @@ export const updateProfile = async (req, res) => {
     const userId = req.user._id;
 
     if (!profilePic) {
-      return res.status(400).json({ message: "Profile pic is required" });
+      return res.status(400).json({ 
+        success: false,
+        message: "Profile picture is required" 
+      });
     }
 
-    const uploadResponse = await cloudinary.uploader.upload(profilePic);
+    // Upload to Cloudinary
+    const uploadResponse = await cloudinary.uploader.upload(profilePic, {
+      folder: "profile_pics",
+      quality: "auto:good",
+    });
+
+    // Update user
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { profilePic: uploadResponse.secure_url },
       { new: true }
-    );
+    ).select("-password");
 
-    res.status(200).json(updatedUser);
+    res.status(200).json({
+      success: true,
+      user: updatedUser
+    });
+
   } catch (error) {
-    console.error("Error in update profile:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Profile update error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to update profile" 
+    });
   }
 };
 
 export const checkAuth = (req, res) => {
   try {
-    res.status(200).json(req.user);
+    res.status(200).json({
+      success: true,
+      user: filterUserData(req.user)
+    });
   } catch (error) {
-    console.error("Error in checkAuth controller:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Auth check error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Session verification failed" 
+    });
   }
 };
+
+// Helper Functions
+function setAuthCookie(res, token) {
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: "/",
+  });
+}
+
+function filterUserData(user) {
+  return {
+    _id: user._id,
+    fullName: user.fullName,
+    email: user.email,
+    profilePic: user.profilePic,
+    createdAt: user.createdAt
+  };
+}
