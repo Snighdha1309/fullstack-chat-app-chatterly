@@ -5,20 +5,24 @@ import {
   logout,
   signup,
   updateProfile,
+  handleFirebaseSignup,
+  handleFirebaseLogin,
+  getUserProfile,
+  updateUser
 } from "../controllers/auth.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 import rateLimit from "express-rate-limit";
 
 const router = express.Router();
 
-// Rate limiting for auth routes
+// Rate limiting
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // Limit each IP to 20 requests per window
+  windowMs: 15 * 60 * 1000,
+  max: 20,
   message: "Too many attempts, please try again later",
 });
 
-// Input validation middleware
+// Input validation middlewares
 const validateAuthInput = (req, res, next) => {
   const { email, password } = req.body;
   
@@ -35,8 +39,31 @@ const validateAuthInput = (req, res, next) => {
       message: "Password must be at least 6 characters" 
     });
   }
+  req.body.email = email.toLowerCase().trim();
+  next();
+};
 
-  // Normalize email
+const validateFirebaseAuth = (req, res, next) => {
+  const { email, firebaseUid, fullName } = req.body;
+  
+  if (!email || !email.includes("@")) {
+    return res.status(400).json({ 
+      success: false,
+      message: "Please provide a valid email address" 
+    });
+  }
+  if (!firebaseUid) {
+    return res.status(400).json({ 
+      success: false,
+      message: "Firebase UID is required" 
+    });
+  }
+  if (!fullName) {
+    return res.status(400).json({ 
+      success: false,
+      message: "Full name is required" 
+    });
+  }
   req.body.email = email.toLowerCase().trim();
   next();
 };
@@ -44,13 +71,19 @@ const validateAuthInput = (req, res, next) => {
 // Auth Routes
 router.post("/signup", authLimiter, validateAuthInput, signup);
 router.post("/login", authLimiter, validateAuthInput, login);
+router.post("/firebase/signup", authLimiter, validateFirebaseAuth, handleFirebaseSignup);
+router.post("/firebase/login", authLimiter, validateFirebaseAuth, handleFirebaseLogin);
 router.post("/logout", logout);
 
-// Protected Routes
-router.put("/update-profile", protectRoute, updateProfile);
-router.get("/check", protectRoute, checkAuth);
+// User Profile Routes
+router.route("/profile")
+  .get(protectRoute, getUserProfile)
+  .put(protectRoute, updateProfile);
 
-// Health check endpoint
+// Admin Routes
+router.put("/admin/update-user/:id", protectRoute, updateUser);
+
+// Health check
 router.get("/health", (req, res) => {
   res.status(200).json({ 
     status: "healthy",

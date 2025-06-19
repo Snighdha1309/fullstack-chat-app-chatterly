@@ -23,11 +23,19 @@ const userSchema = new mongoose.Schema(
       maxlength: [50, "Name cannot exceed 50 characters"],
       minlength: [2, "Name must be at least 2 characters"]
     },
+    firebaseUid: {
+      type: String,
+      unique: true,
+      sparse: true // Allows null values for non-Firebase users
+    },
     password: {
       type: String,
-      required: [true, "Password is required"],
       minlength: [8, "Password must be at least 8 characters"],
-      select: false
+      select: false,
+      // Make password optional for Firebase-authenticated users
+      required: function() {
+        return !this.firebaseUid; // Only required if no Firebase UID
+      }
     },
     profilePic: {
       type: String,
@@ -65,6 +73,11 @@ const userSchema = new mongoose.Schema(
     twoFactorSecret: {
       type: String,
       select: false
+    },
+    authProvider: {
+      type: String,
+      enum: ["local", "firebase"],
+      default: "local"
     }
   },
   { 
@@ -74,6 +87,7 @@ const userSchema = new mongoose.Schema(
       transform: function(doc, ret) {
         delete ret.password;
         delete ret.twoFactorSecret;
+        delete ret.firebaseUid;
         return ret;
       }
     },
@@ -81,9 +95,10 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Password hashing middleware
+// Modified password hashing middleware
 userSchema.pre("save", async function(next) {
-  if (!this.isModified("password")) return next();
+  // Skip if password isn't modified (or user is Firebase-authenticated)
+  if (!this.isModified("password") || this.firebaseUid) return next();
 
   try {
     this.password = await bcrypt.hash(this.password, 12);
@@ -94,7 +109,7 @@ userSchema.pre("save", async function(next) {
   }
 });
 
-// Account lock after failed attempts
+// Enhanced login attempt tracking
 userSchema.methods.incrementLoginAttempts = async function() {
   const MAX_LOGIN_ATTEMPTS = 5;
   const LOCK_TIME = 15 * 60 * 1000; // 15 minutes
@@ -106,16 +121,12 @@ userSchema.methods.incrementLoginAttempts = async function() {
   await this.save();
 };
 
-// Reset login attempts on successful login
-userSchema.methods.resetLoginAttempts = async function() {
-  this.loginAttempts = 0;
-  this.accountLockedUntil = undefined;
-  this.lastLogin = new Date();
-  await this.save();
-};
-
-// Password comparison
+// Modified password comparison
 userSchema.methods.comparePassword = async function(candidatePassword) {
+  if (this.firebaseUid) {
+    throw new Error("Password comparison not available for Firebase-authenticated users");
+  }
+
   if (this.accountLockedUntil && this.accountLockedUntil > Date.now()) {
     throw new Error("Account temporarily locked. Try again later");
   }
@@ -130,7 +141,23 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
   return true;
 };
 
-// Password change check
+// New method for Firebase users
+userSchema.methods.verifyFirebaseUser = async function(firebaseUid) {
+  if (this.firebaseUid !== firebaseUid) {
+    throw new Error("Firebase UID mismatch");
+  }
+  await this.resetLoginAttempts();
+  return true;
+};
+
+// Preserve all other existing methods
+userSchema.methods.resetLoginAttempts = async function() {
+  this.loginAttempts = 0;
+  this.accountLockedUntil = undefined;
+  this.lastLogin = new Date();
+  await this.save();
+};
+
 userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
   if (this.passwordChangedAt) {
     const changedTimestamp = parseInt(this.passwordChangedAt.getTime() / 1000, 10);
@@ -139,8 +166,11 @@ userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
   return false;
 };
 
-// Password reset token generation
 userSchema.methods.createPasswordResetToken = function() {
+  if (this.firebaseUid) {
+    throw new Error("Password reset not available for Firebase-authenticated users");
+  }
+
   const resetToken = crypto.randomBytes(32).toString("hex");
   this.passwordResetToken = crypto
     .createHash("sha256")
