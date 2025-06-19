@@ -5,7 +5,7 @@ import { useAuthStore } from "../store/useAuthStore";
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
-import socket from "../lib/socket";
+import socket from "../lib/socketclient";
 import { useToast } from "../hooks/useToast";
 
 const ChatContainer = () => {
