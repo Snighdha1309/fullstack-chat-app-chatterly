@@ -1,3 +1,5 @@
+
+
 import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
@@ -7,6 +9,29 @@ import cloudinary from "../lib/cloudinary.js";
 const PASSWORD_MIN_LENGTH = 6;
 const SALT_ROUNDS = 10;
 
+// Helper Functions
+const setAuthCookie = (res, token) => {
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: "/",
+  });
+};
+
+const filterUserData = (user) => ({
+  _id: user._id,
+  fullName: user.fullName,
+  email: user.email,
+  profilePic: user.profilePic,
+  role: user.role,
+  createdAt: user.createdAt
+});
+
+// ======================
+// LOCAL AUTH HANDLERS
+// ======================
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
 
@@ -38,30 +63,30 @@ export const signup = async (req, res) => {
 
     // Create user
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-    const newUser = new User({
+    const newUser = await User.create({
       fullName: fullName.trim(),
       email: normalizedEmail,
       password: hashedPassword,
+      authProvider: "local",
+      role: "user",
+      profilePic: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName.trim())}`
     });
 
-    await newUser.save();
-    
-    // Generate token and set cookie
+    // Generate token
     const token = generateToken(newUser._id);
     setAuthCookie(res, token);
 
-    // Response
     res.status(201).json({
       success: true,
       user: filterUserData(newUser),
-      token // Optional: For clients that prefer header-based auth
+      token
     });
 
   } catch (error) {
-    console.error("Signup error:", error);
+    console.error("[LOCAL SIGNUP ERROR]", error);
     res.status(500).json({ 
       success: false,
-      message: "Internal server error" 
+      message: "Account creation failed" 
     });
   }
 };
@@ -80,7 +105,8 @@ export const login = async (req, res) => {
 
     // Find user
     const normalizedEmail = email.toLowerCase().trim();
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({ email: normalizedEmail }).select("+password");
+
     if (!user) {
       return res.status(401).json({ 
         success: false,
@@ -97,26 +123,119 @@ export const login = async (req, res) => {
       });
     }
 
-    // Generate token and set cookie
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Generate token
     const token = generateToken(user._id);
     setAuthCookie(res, token);
 
-    // Response
     res.status(200).json({
       success: true,
       user: filterUserData(user),
-      token // Optional: For clients that prefer header-based auth
+      token
     });
 
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("[LOCAL LOGIN ERROR]", error);
     res.status(500).json({ 
       success: false,
-      message: "Internal server error" 
+      message: "Login failed" 
     });
   }
 };
 
+// ======================
+// FIREBASE AUTH HANDLERS
+// ======================
+export const handleFirebaseSignup = async (req, res) => {
+  const { email, firebaseUid, fullName } = req.body;
+
+  try {
+    // Check existing user
+    const normalizedEmail = email.toLowerCase().trim();
+    const existingUser = await User.findOne({ 
+      $or: [{ email: normalizedEmail }, { firebaseUid }] 
+    });
+
+    if (existingUser) {
+      return res.status(409).json({ 
+        success: false,
+        message: "User already exists" 
+      });
+    }
+
+    // Create user
+    const newUser = await User.create({
+      fullName: fullName.trim(),
+      email: normalizedEmail,
+      firebaseUid,
+      authProvider: "firebase",
+      role: "user",
+      profilePic: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName.trim())}`
+    });
+
+    // Generate token
+    const token = generateToken(newUser._id);
+    setAuthCookie(res, token);
+
+    res.status(201).json({
+      success: true,
+      user: filterUserData(newUser),
+      token
+    });
+
+  } catch (error) {
+    console.error("[FIREBASE SIGNUP ERROR]", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Account creation failed" 
+    });
+  }
+};
+
+export const handleFirebaseLogin = async (req, res) => {
+  const { email, firebaseUid } = req.body;
+
+  try {
+    // Find user
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user || user.firebaseUid !== firebaseUid) {
+      return res.status(401).json({ 
+        success: false,
+        message: "Invalid credentials" 
+      });
+    }
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Generate token
+    const token = generateToken(user._id);
+    setAuthCookie(res, token);
+
+    res.status(200).json({
+      success: true,
+      user: filterUserData(user),
+      token
+    });
+
+  } catch (error) {
+    console.error("[FIREBASE LOGIN ERROR]", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Login failed" 
+    });
+  }
+};
+
+// ======================
+// COMMON AUTH HANDLERS
+// ======================
 export const logout = (req, res) => {
   try {
     res.clearCookie("token", {
@@ -130,10 +249,10 @@ export const logout = (req, res) => {
       message: "Logged out successfully" 
     });
   } catch (error) {
-    console.error("Logout error:", error);
+    console.error("[LOGOUT ERROR]", error);
     res.status(500).json({ 
       success: false,
-      message: "Internal server error" 
+      message: "Logout failed" 
     });
   }
 };
@@ -165,11 +284,11 @@ export const updateProfile = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      user: updatedUser
+      user: filterUserData(updatedUser)
     });
 
   } catch (error) {
-    console.error("Profile update error:", error);
+    console.error("[PROFILE UPDATE ERROR]", error);
     res.status(500).json({ 
       success: false,
       message: "Failed to update profile" 
@@ -184,7 +303,7 @@ export const checkAuth = (req, res) => {
       user: filterUserData(req.user)
     });
   } catch (error) {
-    console.error("Auth check error:", error);
+    console.error("[AUTH CHECK ERROR]", error);
     res.status(500).json({ 
       success: false,
       message: "Session verification failed" 
@@ -192,23 +311,23 @@ export const checkAuth = (req, res) => {
   }
 };
 
-// Helper Functions
-function setAuthCookie(res, token) {
-  res.cookie("token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    path: "/",
-  });
-}
+export const updateUser = async (req, res) => {
+  try {
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    ).select("-password");
 
-function filterUserData(user) {
-  return {
-    _id: user._id,
-    fullName: user.fullName,
-    email: user.email,
-    profilePic: user.profilePic,
-    createdAt: user.createdAt
-  };
-}
+    res.status(200).json({
+      success: true,
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error("[USER UPDATE ERROR]", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to update user" 
+    });
+  }
+};
