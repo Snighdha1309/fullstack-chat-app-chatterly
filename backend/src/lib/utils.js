@@ -1,7 +1,4 @@
 import jwt from "jsonwebtoken";
-
-import jwt from "jsonwebtoken";
-
 /**
  * Generates a JWT and optionally sets it as an HTTP-only cookie
  * @param {string} userId - MongoDB user ID
