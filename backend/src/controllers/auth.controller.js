@@ -71,7 +71,7 @@ export const signup = async (req, res) => {
     });
 
     // Generate token
-    const token = generateToken(newUser._id);
+    const token = generateToken(newUser._id,res);
     setAuthCookie(res, token);
 
     res.status(201).json({
@@ -89,6 +89,7 @@ export const signup = async (req, res) => {
   }
 };
 
+// LOCAL LOGIN HANDLER
 export const login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -112,7 +113,15 @@ export const login = async (req, res) => {
       });
     }
 
-    // Verify password
+    // Skip password check for Firebase-authenticated users
+    if (user.authProvider === "firebase") {
+      return res.status(401).json({
+        success: false,
+        message: "Use Firebase to log in"
+      });
+    }
+
+    // Only compare password for local users
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ 
@@ -126,8 +135,7 @@ export const login = async (req, res) => {
     await user.save();
 
     // Generate token
-    const token = generateToken(user._id);
-    setAuthCookie(res, token);
+    const token = generateToken(user._id, res);
 
     res.status(200).json({
       success: true,
@@ -184,7 +192,7 @@ export const handleFirebaseSignup = async (req, res) => {
     });
 
     // Generate token
-    const token = generateToken(newUser._id);
+    const token = generateToken(newUser._id,res);
     setAuthCookie(res, token);
 
     return res.status(201).json({
@@ -236,7 +244,7 @@ export const handleFirebaseLogin = async (req, res) => {
     await user.save();
 
     // Generate token
-    const token = generateToken(user._id);
+    const token = generateToken(user._id,res);
     setAuthCookie(res, token);
 
     res.status(200).json({
