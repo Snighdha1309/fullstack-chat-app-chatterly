@@ -159,7 +159,7 @@ export const handleFirebaseSignup = async (req, res) => {
   try {
     const { email, firebaseUid, fullName } = req.body;
 
-    // Explicit field validation
+    // Validate required fields
     if (!email || !firebaseUid || !fullName) {
       return res.status(400).json({
         success: false,
@@ -192,10 +192,10 @@ export const handleFirebaseSignup = async (req, res) => {
     });
 
     // Generate token
-    const token = generateToken(newUser._id,res);
+    const token = generateToken(newUser._id, res);
     setAuthCookie(res, token);
 
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       user: filterUserData(newUser),
       token
@@ -217,12 +217,16 @@ export const handleFirebaseSignup = async (req, res) => {
     }
 
     console.error("[FIREBASE SIGNUP ERROR]", error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       message: "Account creation failed. Please try again later."
     });
   }
 };
+
+
+
+    
 
 export const handleFirebaseLogin = async (req, res) => {
   const { email, firebaseUid } = req.body;
