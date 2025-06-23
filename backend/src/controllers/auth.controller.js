@@ -1,5 +1,3 @@
-
-
 import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
@@ -150,23 +148,32 @@ export const login = async (req, res) => {
 // FIREBASE AUTH HANDLERS
 // ======================
 export const handleFirebaseSignup = async (req, res) => {
-  const { email, firebaseUid, fullName } = req.body;
-
   try {
-    // Check existing user
-    const normalizedEmail = email.toLowerCase().trim();
-    const existingUser = await User.findOne({ 
-      $or: [{ email: normalizedEmail }, { firebaseUid }] 
-    });
+    const { email, firebaseUid, fullName } = req.body;
 
-    if (existingUser) {
-      return res.status(409).json({ 
+    // Explicit field validation
+    if (!email || !firebaseUid || !fullName) {
+      return res.status(400).json({
         success: false,
-        message: "User already exists" 
+        message: "Missing required fields: email, firebaseUid, fullName"
       });
     }
 
-    // Create user
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check existing user
+    const existingUser = await User.findOne({
+      $or: [{ email: normalizedEmail }, { firebaseUid }]
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "User already exists"
+      });
+    }
+
+    // Create new user
     const newUser = await User.create({
       fullName: fullName.trim(),
       email: normalizedEmail,
@@ -180,17 +187,31 @@ export const handleFirebaseSignup = async (req, res) => {
     const token = generateToken(newUser._id);
     setAuthCookie(res, token);
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       user: filterUserData(newUser),
       token
     });
 
   } catch (error) {
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(e => e.message);
+      return res.status(400).json({ success: false, message: messages.join(', ') });
+    }
+
+    // Handle duplicate key error (e.g., unique constraint)
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: "User with this email or UID already exists"
+      });
+    }
+
     console.error("[FIREBASE SIGNUP ERROR]", error);
-    res.status(500).json({ 
+    return res.status(500).json({
       success: false,
-      message: "Account creation failed" 
+      message: "Account creation failed. Please try again later."
     });
   }
 };
