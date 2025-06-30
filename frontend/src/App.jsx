@@ -6,7 +6,7 @@ import LoginPage from "./pages/LoginPage";
 import SettingsPage from "./pages/SettingsPage";
 import ProfilePage from "./pages/ProfilePage";
 
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, BrowserRouter } from "react-router-dom";
 import { useAuthStore } from "./store/useAuthStore";
 import { useThemeStore } from "./store/useThemeStore";
 import { useEffect } from "react";
@@ -38,6 +38,7 @@ const App = () => {
   }
 
   return (
+    <BrowserRouter>
     <div data-theme={theme}>
       {/* ✅ Toaster placed at top for global toast access */}
       <Toaster position="top-center" reverseOrder={false} />
@@ -52,6 +53,7 @@ const App = () => {
         <Route path="/profile" element={authUser ? <ProfilePage /> : <Navigate to="/login" />} />
       </Routes>
     </div>
+    </BrowserRouter>
   );
 };
 
