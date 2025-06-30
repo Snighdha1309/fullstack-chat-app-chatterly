@@ -38,7 +38,7 @@ const App = () => {
   }
 
   return (
-    <BrowserRouter>
+    
     <div data-theme={theme}>
       {/* ✅ Toaster placed at top for global toast access */}
       <Toaster position="top-center" reverseOrder={false} />
@@ -53,7 +53,6 @@ const App = () => {
         <Route path="/profile" element={authUser ? <ProfilePage /> : <Navigate to="/login" />} />
       </Routes>
     </div>
-    </BrowserRouter>
   );
 };
 
