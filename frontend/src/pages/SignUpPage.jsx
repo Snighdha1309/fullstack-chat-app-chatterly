@@ -62,12 +62,17 @@ const SignUpPage = () => {
       toast.success("Verification email sent!");
 
       // 3. Save user to MongoDB - UPDATED ENDPOINT AND DATA
-      const response = await axios.post('/api/auth/firebase/signup', {
-        email: user.email,
-        firebaseUid: user.uid,
-        fullName: formData.fullName,
-        authProvider: "firebase" // Explicitly set auth provider
-      });
+      try {
+  const response = await axios.post('/api/auth/firebase/signup', {
+    email: user.email,
+    firebaseUid: user.uid,
+    fullName: formData.fullName,
+    authProvider: "firebase"
+  });
+  console.log("User saved successfully:", response.data);
+} catch (error) {
+  console.error("Failed to save user to MongoDB:", error.response?.data || error.message);
+}
 
       if (response.status === 201) {
         toast.success("Account created successfully!");
