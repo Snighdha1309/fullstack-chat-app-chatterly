@@ -1,24 +1,12 @@
-import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
-
 // Constants
-const setAuthCookie = (res, token) => {
-  res.cookie("token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    path: "/",
-  });
-};
-
 const filterUserData = (user) => ({
   _id: user._id,
   fullName: user.fullName,
   email: user.email,
   profilePic: user.profilePic,
   role: user.role,
-  createdAt: user.createdAt,
+  createdAt: user.createdAt
 });
 
 // ======================
@@ -64,8 +52,8 @@ export const handleFirebaseSignup = async (req, res) => {
     });
 
     // Generate token
-    const token = generateToken(newUser._id, res);
-    setAuthCookie(res, token);
+    const token = req.generateToken(newUser._id, res);
+    req.setAuthCookie(res, token);
 
     res.status(201).json({
       success: true,
@@ -117,9 +105,9 @@ export const handleFirebaseLogin = async (req, res) => {
     const user = await User.findOne({ email: normalizedEmail });
 
     if (!user || user.firebaseUid !== firebaseUid) {
-      return res.status(401).json({
+      return res.status(401).json({ 
         success: false,
-        message: "Invalid credentials"
+        message: "Invalid credentials" 
       });
     }
 
@@ -128,8 +116,8 @@ export const handleFirebaseLogin = async (req, res) => {
     await user.save();
 
     // Generate token
-    const token = generateToken(user._id, res);
-    setAuthCookie(res, token);
+    const token = req.generateToken(user._id, res);
+    req.setAuthCookie(res, token);
 
     res.status(200).json({
       success: true,
@@ -139,9 +127,9 @@ export const handleFirebaseLogin = async (req, res) => {
 
   } catch (error) {
     console.error("[FIREBASE LOGIN ERROR]", error);
-    res.status(500).json({
+    res.status(500).json({ 
       success: false,
-      message: "Login failed"
+      message: "Login failed" 
     });
   }
 };
@@ -152,21 +140,21 @@ export const handleFirebaseLogin = async (req, res) => {
 
 export const logout = (req, res) => {
   try {
-    res.clearCookie("token", {
+    res.clearCookie("jwt", {
       httpOnly: true,
       sameSite: "strict",
       secure: process.env.NODE_ENV === "production",
       path: "/",
     });
-    res.status(200).json({
+    res.status(200).json({ 
       success: true,
-      message: "Logged out successfully"
+      message: "Logged out successfully" 
     });
   } catch (error) {
     console.error("[LOGOUT ERROR]", error);
-    res.status(500).json({
+    res.status(500).json({ 
       success: false,
-      message: "Logout failed"
+      message: "Logout failed" 
     });
   }
 };
@@ -179,9 +167,79 @@ export const checkAuth = (req, res) => {
     });
   } catch (error) {
     console.error("[AUTH CHECK ERROR]", error);
-    res.status(500).json({
+    res.status(500).json({ 
       success: false,
-      message: "Session verification failed"
+      message: "Session verification failed" 
+    });
+  }
+};
+
+// ======================
+// PROFILE & USER UPDATE
+// ======================
+
+/**
+ * Update user profile picture
+ */
+export const updateProfile = async (req, res) => {
+  try {
+    const { profilePic } = req.body;
+    const userId = req.user._id;
+
+    if (!profilePic) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Profile picture is required" 
+      });
+    }
+
+    // In case you use Cloudinary later
+    // const uploadResponse = await cloudinary.uploader.upload(profilePic, {
+    //   folder: "profile_pics",
+    //   quality: "auto:good",
+    // });
+
+    // For now, just store provided URL
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { profilePic },
+      { new: true }
+    ).select("-password");
+
+    res.status(200).json({
+      success: true,
+      user: updatedUser
+    });
+
+  } catch (error) {
+    console.error("[PROFILE UPDATE ERROR]", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to update profile" 
+    });
+  }
+};
+
+/**
+ * General-purpose user update (like name or other non-sensitive info)
+ */
+export const updateUser = async (req, res) => {
+  try {
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    ).select("-password");
+
+    res.status(200).json({
+      success: true,
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error("[USER UPDATE ERROR]", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to update user" 
     });
   }
 };
