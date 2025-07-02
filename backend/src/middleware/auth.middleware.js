@@ -16,14 +16,14 @@ export const protectRoute = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // 3. Check if user still exists
-    const currentUser = await User.findById(decoded.userId).select('+passwordChangedAt');
+    const currentUser = await User.findById(decoded.userId);
     if (!currentUser) {
       throw createHttpError(401, 'Unauthorized - User no longer exists');
     }
 
-    // 4. Check if user changed password after token was issued
-    if (currentUser.changedPasswordAfter(decoded.iat)) {
-      throw createHttpError(401, 'Unauthorized - Password was changed recently');
+    // 4. Ensure user is active
+    if (!currentUser.active) {
+      throw createHttpError(401, 'Unauthorized - Account is inactive');
     }
 
     // 5. Grant access

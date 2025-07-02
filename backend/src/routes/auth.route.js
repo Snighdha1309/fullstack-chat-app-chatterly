@@ -1,9 +1,7 @@
 import express from "express";
 import {
   checkAuth,
-  login,
   logout,
-  signup,
   updateProfile,
   handleFirebaseSignup,
   handleFirebaseLogin,
@@ -68,8 +66,6 @@ const validateFirebaseAuth = (req, res, next) => {
 };
 
 // Auth Routes
-router.post("/signup", authLimiter, validateAuthInput, signup);
-router.post("/login", authLimiter, validateAuthInput, login);
 router.post("/firebase/signup", authLimiter, validateFirebaseAuth, handleFirebaseSignup);
 router.post("/firebase/login", authLimiter, validateFirebaseAuth, handleFirebaseLogin);
 router.post("/logout", logout);
