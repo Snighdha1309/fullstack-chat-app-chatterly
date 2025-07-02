@@ -1,4 +1,5 @@
 import User from "../models/user.model.js";
+import { generateToken } from "../lib/utils.js";
 // Constants
 const filterUserData = (user) => ({
   _id: user._id,
@@ -52,7 +53,7 @@ export const handleFirebaseSignup = async (req, res) => {
     });
 
     // Generate token
-    const token = req.generateToken(newUser._id, res);
+    const token = generateToken(newUser._id, res);
     req.setAuthCookie(res, token);
 
     res.status(201).json({
@@ -116,7 +117,7 @@ export const handleFirebaseLogin = async (req, res) => {
     await user.save();
 
     // Generate token
-    const token = req.generateToken(user._id, res);
+    const token = generateToken(user._id, res);
     req.setAuthCookie(res, token);
 
     res.status(200).json({
