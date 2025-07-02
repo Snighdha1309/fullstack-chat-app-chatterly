@@ -7,8 +7,8 @@ import AuthImagePattern from "../components/AuthImagePattern";
 import { Link } from "react-router-dom";
 
 // Import Firebase SDK
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
-
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../lib/firebase"; // ✅ Use the exported one
 const SignupPage = () => {
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login); // Assuming this sets user + token
@@ -48,7 +48,6 @@ const SignupPage = () => {
 
     try {
       // Step 1: Create user via Firebase
-      const auth = getAuth();
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         formData.email.toLowerCase().trim(),

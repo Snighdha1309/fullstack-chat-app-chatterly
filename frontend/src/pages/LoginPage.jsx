@@ -5,9 +5,8 @@ import toast from "react-hot-toast";
 import { useAuthStore } from "../store/useAuthStore";
 import AuthImagePattern from "../components/AuthImagePattern";
 import { Link } from "react-router-dom";
-
-// Import Firebase SDK
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../lib/firebaseconfig"; // ✅ Use the exported one
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -42,7 +41,6 @@ const LoginPage = () => {
 
     try {
       // Step 1: Sign in with Firebase
-      const auth = getAuth();
       const userCredential = await signInWithEmailAndPassword(
         auth,
         formData.email.toLowerCase().trim(),
