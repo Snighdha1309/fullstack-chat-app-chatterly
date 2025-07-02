@@ -7,7 +7,7 @@ import AuthImagePattern from "../components/AuthImagePattern";
 import { Link } from "react-router-dom";
 
 // Import Firebase SDK
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../lib/firebaseconfig"; // ✅ Use the exported one
 const SignupPage = () => {
   const navigate = useNavigate();
