@@ -1,211 +1,209 @@
 import { useState } from "react";
-import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare, User } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import AuthImagePattern from "../components/AuthImagePattern";
+import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff, Loader2, Mail, Lock } from "lucide-react";
 import toast from "react-hot-toast";
-import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
-import { auth } from "../lib/firebaseconfig.js";
-import axios from "axios";
+import { useAuthStore } from "../store/useAuthStore";
+import AuthImagePattern from "../components/AuthImagePattern";
+import { Link } from "react-router-dom";
 
-const SignUpPage = () => {
+// Import Firebase SDK
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
+
+const SignupPage = () => {
+  const navigate = useNavigate();
+  const login = useAuthStore((state) => state.login); // Assuming this sets user + token
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
-    password: "",
+    password: ""
   });
-
-  const navigate = useNavigate();
+  const [isSigningUp, setIsSigningUp] = useState(false);
+  const [validationError, setValidationError] = useState("");
 
   const validateForm = () => {
-    if (!formData.fullName.trim()) {
-      toast.error("Full name is required");
+    if (!formData.fullName || formData.fullName.trim().length < 2) {
+      setValidationError("Please enter your full name");
       return false;
     }
-    if (!formData.email.trim()) {
-      toast.error("Email is required");
+    if (!formData.email || !formData.email.includes("@")) {
+      setValidationError("Please enter a valid email address");
       return false;
     }
-    if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      toast.error("Invalid email format");
+    if (!formData.password || formData.password.length < 6) {
+      setValidationError("Password must be at least 6 characters");
       return false;
     }
-    if (!formData.password) {
-      toast.error("Password is required");
-      return false;
-    }
-    if (formData.password.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return false;
-    }
+
+    setValidationError("");
     return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!validateForm()) return;
 
-    setIsLoading(true);
+    setIsSigningUp(true);
 
     try {
-      // 1. Create user in Firebase
+      // Step 1: Create user via Firebase
+      const auth = getAuth();
       const userCredential = await createUserWithEmailAndPassword(
         auth,
-        formData.email,
+        formData.email.toLowerCase().trim(),
         formData.password
       );
-      const user = userCredential.user;
 
-      // 2. Send verification email
-      await sendEmailVerification(user);
-      toast.success("Verification email sent!");
+      const firebaseUser = userCredential.user;
 
-      // 3. Save user to MongoDB - UPDATED ENDPOINT AND DATA
-      try {
-  const response = await axios.post('/api/auth/firebase/signup', {
-    email: user.email,
-    firebaseUid: user.uid,
-    fullName: formData.fullName,
-    authProvider: "firebase"
-  });
-  console.log("User saved successfully:", response.data);
-} catch (error) {
-  console.error("Failed to save user to MongoDB:", error.response?.data || error.message);
-}
+      // Step 2: Send user data to backend for MongoDB sync
+      const response = await fetch("/api/auth/firebase-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: firebaseUser.email,
+          firebaseUid: firebaseUser.uid,
+          fullName: formData.fullName.trim()
+        })
+      });
 
-      if (response.status === 201) {
+      const result = await response.json();
+
+      if (result.success) {
+        // Step 3: Save user and token in Zustand store
+        login(result.user, result.token); // Adjust based on how your store works
+
         toast.success("Account created successfully!");
-        navigate("/login");
-      }
-    } catch (error) {
-      console.error("Signup error:", error);
-      
-      // Enhanced error handling
-      if (error.code === "auth/email-already-in-use") {
-        toast.error("Email already in use. Please login.");
-      } else if (error.response?.status === 409) {
-        toast.error("Account already exists. Please login.");
-      } else if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
+        navigate("/", { replace: true }); // Prevent back navigation to signup
       } else {
-        toast.error("Account creation failed. Please try again.");
+        toast.error(result.message || "Failed to complete signup");
       }
+
+    } catch (error) {
+      console.error("Firebase or backend signup error:", error.message);
+      toast.error("Could not create account. Please try again.");
     } finally {
-      setIsLoading(false);
+      setIsSigningUp(false);
     }
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2">
-      {/* Left side - Form */}
+    <div className="h-screen grid lg:grid-cols-2">
       <div className="flex flex-col justify-center items-center p-6 sm:p-12">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center mb-8">
             <div className="flex flex-col items-center gap-2 group">
-              <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                <MessageSquare className="size-6 text-primary" />
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <Mail className="w-6 h-6 text-primary" />
               </div>
               <h1 className="text-2xl font-bold mt-2">Create Account</h1>
-              <p className="text-base-content/60">Get started with your free account</p>
+              <p className="text-base-content/60">Sign up to start messaging</p>
             </div>
           </div>
 
+          {validationError && (
+            <div className="alert alert-error">
+              <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{validationError}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Full Name Field */}
             <div className="form-control">
               <label className="label">
                 <span className="label-text font-medium">Full Name</span>
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="size-5 text-base-content/40" />
-                </div>
-                <input
-                  type="text"
-                  className="input input-bordered w-full pl-10"
-                  placeholder="John Doe"
-                  value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  disabled={isLoading}
-                />
-              </div>
+              <input
+                type="text"
+                className="input input-bordered w-full"
+                placeholder="John Doe"
+                value={formData.fullName}
+                onChange={(e) => {
+                  setFormData({ ...formData, fullName: e.target.value });
+                  setValidationError("");
+                }}
+              />
             </div>
 
-            {/* Email Field */}
             <div className="form-control">
               <label className="label">
                 <span className="label-text font-medium">Email</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="size-5 text-base-content/40" />
+                  <Mail className="h-5 w-5 text-base-content/40" />
                 </div>
                 <input
                   type="email"
                   className="input input-bordered w-full pl-10"
-                  placeholder="your@email.com"
+                  placeholder="you@example.com"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  disabled={isLoading}
+                  onChange={(e) => {
+                    setFormData({ ...formData, email: e.target.value });
+                    setValidationError("");
+                  }}
+                  autoComplete="username"
                 />
               </div>
             </div>
 
-            {/* Password Field */}
             <div className="form-control">
               <label className="label">
                 <span className="label-text font-medium">Password</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="size-5 text-base-content/40" />
+                  <Lock className="h-5 w-5 text-base-content/40" />
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
                   className="input input-bordered w-full pl-10"
                   placeholder="••••••••"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  disabled={isLoading}
+                  onChange={(e) => {
+                    setFormData({ ...formData, password: e.target.value });
+                    setValidationError("");
+                  }}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowPassword(!showPassword)}
-                  disabled={isLoading}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
-                    <EyeOff className="size-5 text-base-content/40" />
+                    <EyeOff className="h-5 w-5 text-base-content/40" />
                   ) : (
-                    <Eye className="size-5 text-base-content/40" />
+                    <Eye className="h-5 w-5 text-base-content/40" />
                   )}
                 </button>
               </div>
             </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              className="btn btn-primary w-full"
-              disabled={isLoading}
+            <button 
+              type="submit" 
+              className="btn btn-primary w-full" 
+              disabled={isSigningUp}
             >
-              {isLoading ? (
+              {isSigningUp ? (
                 <>
-                  <Loader2 className="size-5 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                   <span className="ml-2">Creating account...</span>
                 </>
               ) : (
-                "Create Account"
+                "Sign up"
               )}
             </button>
           </form>
 
-          {/* Login Link */}
           <div className="text-center">
             <p className="text-base-content/60">
               Already have an account?{" "}
-              <Link to="/login" className="link link-primary">
+              <Link to="/firebase/login" className="link link-primary">
                 Sign in
               </Link>
             </p>
@@ -213,13 +211,12 @@ const SignUpPage = () => {
         </div>
       </div>
 
-      {/* Right side - Image/Pattern */}
       <AuthImagePattern
-        title="Join our community"
-        subtitle="Connect with friends and share your moments"
+        title={"Join the conversation!"}
+        subtitle={"Create an account to start sending messages and connecting with others."}
       />
     </div>
   );
 };
 
-export default SignUpPage; 
+export default SignupPage;

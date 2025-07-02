@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare } from "lucide-react";
+import { Eye, EyeOff, Loader2, Mail, Lock } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuthStore } from "../store/useAuthStore";
 import AuthImagePattern from "../components/AuthImagePattern";
 import { Link } from "react-router-dom";
 
+// Import Firebase SDK
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+
 const LoginPage = () => {
   const navigate = useNavigate();
-  const login = useAuthStore((state) => state.login);
+  const login = useAuthStore((state) => state.login); // This should eventually set the user/token
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ 
     email: "", 
@@ -32,26 +35,47 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setIsLoggingIn(true);
-    
+
     try {
-      const result = await login({
-        email: formData.email.toLowerCase().trim(),
-        password: formData.password
+      // Step 1: Sign in with Firebase
+      const auth = getAuth();
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        formData.email.toLowerCase().trim(),
+        formData.password
+      );
+
+      const firebaseUser = userCredential.user;
+
+      // Step 2: Send UID and email to backend for MongoDB sync
+      const response = await fetch("/api/auth/firebase-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: firebaseUser.email,
+          firebaseUid: firebaseUser.uid
+        })
       });
 
-      if (result?.success) {
+      const result = await response.json();
+
+      if (result.success) {
+        // Step 3: Save token and user info in Zustand store
+        login(result.user, result.token); // Adjust based on how your store works
+
         toast.success("Login successful!");
         navigate("/", { replace: true }); // Prevent back navigation to login
       } else {
-        toast.error(result?.message || "Login failed. Please try again.");
+        toast.error(result.message || "Login failed");
       }
+
     } catch (error) {
-      console.error("Login error:", error);
-      toast.error("An unexpected error occurred");
+      console.error("Firebase or backend login error:", error.message);
+      toast.error("Invalid email or password");
     } finally {
       setIsLoggingIn(false);
     }
@@ -155,8 +179,8 @@ const LoginPage = () => {
 
           <div className="text-center">
             <p className="text-base-content/60">
-              Don&apos;t have an account?{" "}
-              <Link to="/signup" className="link link-primary">
+              Don't have an account?{" "}
+              <Link to="/firebase/signup" className="link link-primary">
                 Create account
               </Link>
             </p>
