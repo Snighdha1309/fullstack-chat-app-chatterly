@@ -50,7 +50,7 @@ const LoginPage = () => {
       const firebaseUser = userCredential.user;
 
       // Step 2: Send UID and email to backend for MongoDB sync
-      const response = await fetch("/api/auth/firebase-login", {
+      const response = await fetch("/api/auth/firebase/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

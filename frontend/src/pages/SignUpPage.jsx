@@ -8,7 +8,7 @@ import { Link } from "react-router-dom";
 
 // Import Firebase SDK
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../lib/firebase"; // ✅ Use the exported one
+import { auth } from "../lib/firebaseconfig"; // ✅ Use the exported one
 const SignupPage = () => {
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login); // Assuming this sets user + token
@@ -57,7 +57,7 @@ const SignupPage = () => {
       const firebaseUser = userCredential.user;
 
       // Step 2: Send user data to backend for MongoDB sync
-      const response = await fetch("/api/auth/firebase-signup", {
+      const response = await fetch("/api/auth/firebase/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
