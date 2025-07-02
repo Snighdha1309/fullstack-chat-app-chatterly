@@ -6,7 +6,7 @@ import createHttpError from "http-errors";
 export const protectRoute = async (req, res, next) => {
   try {
     // 1. Get token from cookies or Authorization header
-    const token = req.cookies?.token || req.headers.authorization?.split(' ')[1];
+    const token = req.cookies?.jwt || req.headers.authorization?.split(' ')[1];
     
     if (!token) {
       throw createHttpError(401, 'Unauthorized - No authentication token provided');
@@ -39,7 +39,7 @@ export const protectRoute = async (req, res, next) => {
     }
 
     // Clear invalid token cookie
-    res.clearCookie('token', {
+    res.clearCookie('jwt', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict'
