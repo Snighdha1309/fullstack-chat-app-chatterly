@@ -57,7 +57,7 @@ const SignupPage = () => {
       const firebaseUser = userCredential.user;
 
       // Step 2: Send user data to backend for MongoDB sync
-      const response = await fetch("/api/auth/firebase/signup", {
+      const response = await fetch('/api/auth/firebase/signup', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
