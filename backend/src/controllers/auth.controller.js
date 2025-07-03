@@ -2,6 +2,8 @@ import User from "../models/user.model.js";
 import { generateToken } from "../lib/utils.js";
 // Constants
 import { setAuthCookie } from "./auth.helper.js";
+import { signInWithEmailAndPassword } from "firebase/auth"; 
+import { auth } from "../lib/firebaseconfig.js"; 
 const filterUserData = (user) => ({
   _id: user._id,
   fullName: user.fullName,
@@ -19,8 +21,6 @@ const filterUserData = (user) => ({
  * Handles Firebase user sign-up:
  * - Creates a new user in MongoDB if not exists
  */
-import { signInWithEmailAndPassword } from "firebase/auth"; 
-import { auth } from "../lib/firebaseconfig.js"; 
 export const handleFirebaseSignup = async (req, res) => {
   try {
     const { email, firebaseUid, fullName } = req.body;
@@ -93,8 +93,7 @@ export const handleFirebaseSignup = async (req, res) => {
  * - Finds user by Firebase UID and email
  * - Issues JWT cookie
  */
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../lib/firebaseconfig.js";
+
 
 export const handleFirebaseLogin = async (req, res) => {
   const { email, password } = req.body;
