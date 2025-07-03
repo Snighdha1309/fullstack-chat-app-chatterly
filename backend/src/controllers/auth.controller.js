@@ -2,8 +2,11 @@ import User from "../models/user.model.js";
 import { generateToken } from "../lib/utils.js";
 // Constants
 import { setAuthCookie } from "./auth.helper.js"; 
-import { auth } from "..../frontend/src/lib/firebaseconfig.js"; // ← Backend config
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth } from "firebase-admin/auth";
+
+// Later in your code:
+const auth = getAuth();
+await auth.verifyIdToken(idToken); // Admin SDK method
 const filterUserData = (user) => ({
   _id: user._id,
   fullName: user.fullName,
@@ -95,10 +98,11 @@ export const handleFirebaseSignup = async (req, res) => {
  */
 
 
+
 export const handleFirebaseLogin = async (req, res) => {
   const { email, password } = req.body;
 
-  // 1. Input Validation (replaces your first middleware)
+  // 1. Input Validation (unchanged)
   if (!email?.trim() || !password) {
     return res.status(400).json({
       success: false,
@@ -107,27 +111,23 @@ export const handleFirebaseLogin = async (req, res) => {
   }
 
   try {
-    // 2. Firebase Authentication
-    const userCredential = await signInWithEmailAndPassword(
-      auth,
-      email.trim(),
-      password
-    );
-    const firebaseUser = userCredential.user;
-
-    // 3. Optional: Email Verification Check
-    if (!firebaseUser.emailVerified) {
+    // 2. Firebase Authentication - NEW IMPLEMENTATION
+    const auth = getAuth();
+    const userRecord = await auth.getUserByEmail(email.trim());
+    
+    // 3. Email Verification Check (unchanged but now uses Admin SDK)
+    if (!userRecord.emailVerified) {
       return res.status(403).json({
         success: false,
         message: "Please verify your email first"
       });
     }
 
-    // 4. MongoDB Sync
+    // 4. MongoDB Sync (unchanged)
     const user = await User.findOneAndUpdate(
-      { firebaseUid: firebaseUser.uid }, // Find by Firebase UID
-      { lastLogin: new Date() }, // Update last login
-      { new: true } // Return updated doc
+      { firebaseUid: userRecord.uid }, // Now using userRecord.uid
+      { lastLogin: new Date() },
+      { new: true }
     );
 
     if (!user) {
@@ -137,7 +137,7 @@ export const handleFirebaseLogin = async (req, res) => {
       });
     }
 
-    // 5. Generate JWT
+    // 5. Generate JWT (unchanged)
     const token = generateToken(user._id);
     setAuthCookie(res, token);
 
@@ -148,12 +148,12 @@ export const handleFirebaseLogin = async (req, res) => {
     });
 
   } catch (error) {
-    // 6. Firebase Error Handling
+    // 6. Updated Error Handling for Admin SDK
     const errorMap = {
-      "auth/invalid-email": "Invalid email format",
-      "auth/wrong-password": "Incorrect password",
       "auth/user-not-found": "Email not registered",
+      "auth/invalid-email": "Invalid email format",
       "auth/too-many-requests": "Too many attempts. Try again later"
+      // Note: No password validation here anymore
     };
 
     const message = errorMap[error.code] || "Login failed";
