@@ -1,9 +1,9 @@
 import User from "../models/user.model.js";
 import { generateToken } from "../lib/utils.js";
 // Constants
-import { setAuthCookie } from "./auth.helper.js";
-import { signInWithEmailAndPassword } from "firebase/auth"; 
-import { auth } from "../lib/firebaseconfig.js"; 
+import { setAuthCookie } from "./auth.helper.js"; 
+import { auth } from "../lib/firebase-admin.js"; // ← Backend config
+import { signInWithEmailAndPassword } from "firebase-admin/auth";
 const filterUserData = (user) => ({
   _id: user._id,
   fullName: user.fullName,
