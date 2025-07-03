@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import { generateToken } from "../lib/utils.js";
 // Constants
+import { setAuthCookie } from "./auth.helper.js";
 const filterUserData = (user) => ({
   _id: user._id,
   fullName: user.fullName,
@@ -54,7 +55,7 @@ export const handleFirebaseSignup = async (req, res) => {
 
     // Generate token
     const token = generateToken(newUser._id, res);
-    req.setAuthCookie(res, token);
+    setAuthCookie(res, token);
 
     res.status(201).json({
       success: true,
@@ -118,7 +119,7 @@ export const handleFirebaseLogin = async (req, res) => {
 
     // Generate token
     const token = generateToken(user._id, res);
-    req.setAuthCookie(res, token);
+    setAuthCookie(res, token);
 
     res.status(200).json({
       success: true,
