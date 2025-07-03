@@ -40,52 +40,74 @@ const SignupPage = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
+  if (!validateForm()) return;
 
-    if (!validateForm()) return;
+  setIsSigningUp(true);
 
-    setIsSigningUp(true);
+  try {
+    // 1. Create Firebase user (unverified)
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      formData.email.toLowerCase().trim(),
+      formData.password
+    );
 
-    try {
-      // Step 1: Create user via Firebase
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        formData.email.toLowerCase().trim(),
-        formData.password
-      );
+    const user = userCredential.user;
 
-      const firebaseUser = userCredential.user;
+    // 2. Send verification email
+    await sendEmailVerification(user);
+    toast.success(`Verification email sent to ${user.email}`);
 
-      // Step 2: Send user data to backend for MongoDB sync
-      const response = await fetch('/api/auth/firebase/signup', {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: firebaseUser.email,
-          firebaseUid: firebaseUser.uid,
-          fullName: formData.fullName.trim()
-        })
-      });
+    // 3. Set up a listener for email verification
+    const interval = setInterval(async () => {
+      // Refresh the user object to get latest status
+      await user.reload();
 
-      const result = await response.json();
+      if (user.emailVerified) {
+        clearInterval(interval);
 
-      if (result.success) {
-        // Step 3: Save user and token in Zustand store
-        login(result.user, result.token); // Adjust based on how your store works
+        // 4. Only proceed to backend AFTER verification
+        const response = await fetch('/api/auth/firebase/signup', {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: user.email,
+            firebaseUid: user.uid,
+            fullName: formData.fullName.trim()
+          })
+        });
 
-        toast.success("Account created successfully!");
-        navigate("/", { replace: true }); // Prevent back navigation to signup
-      } else {
-        toast.error(result.message || "Failed to complete signup");
+        const result = await response.json();
+
+        if (result.success) {
+          login(result.user, result.token); // Zustand store update
+          toast.success("Account verified and created successfully!");
+          navigate("/", { replace: true });
+        } else {
+          throw new Error(result.message || "Failed to complete signup");
+        }
       }
+    }, 3000); // Check every 3 seconds
 
-    } catch (error) {
-      console.error("Firebase or backend signup error:", error.message);
-      toast.error("Could not create account. Please try again.");
-    } finally {
-      setIsSigningUp(false);
+    // Cleanup interval if component unmounts
+    return () => clearInterval(interval);
+
+  } catch (error) {
+    console.error("Signup error:", error);
+    let message = "Signup failed. Please try again.";
+    
+    if (error.code === 'auth/email-already-in-use') {
+      message = "Email already in use. Try logging in instead.";
+    } else if (error.code === 'auth/weak-password') {
+      message = "Password should be at least 6 characters.";
     }
-  };
+    
+    toast.error(message);
+  } finally {
+    setIsSigningUp(false);
+  }
+};
 
   return (
     <div className="h-screen grid lg:grid-cols-2">
