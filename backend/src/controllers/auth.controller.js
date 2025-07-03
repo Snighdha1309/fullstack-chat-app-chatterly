@@ -19,6 +19,8 @@ const filterUserData = (user) => ({
  * Handles Firebase user sign-up:
  * - Creates a new user in MongoDB if not exists
  */
+import { signInWithEmailAndPassword } from "firebase/auth"; 
+import { auth } from "../lib/firebaseconfig.js"; 
 export const handleFirebaseSignup = async (req, res) => {
   try {
     const { email, firebaseUid, fullName } = req.body;
