@@ -33,41 +33,18 @@ const validateAuthInput = (req, res, next) => {
   if (!password || password.length < 6) {
     return res.status(400).json({ 
       success: false,
-      message: "Password must be at least 6 characters" 
+      message: "Wrong password" 
     });
   }
   req.body.email = email.toLowerCase().trim();
   next();
 };
 
-const validateFirebaseAuth = (req, res, next) => {
-  const { email, firebaseUid, fullName } = req.body;
-  
-  if (!email || !email.includes("@")) {
-    return res.status(400).json({ 
-      success: false,
-      message: "Please provide a valid email address" 
-    });
-  }
-  if (!firebaseUid) {
-    return res.status(400).json({ 
-      success: false,
-      message: "Firebase UID is required" 
-    });
-  }
-  if (!fullName) {
-    return res.status(400).json({ 
-      success: false,
-      message: "Full name is required" 
-    });
-  }
-  req.body.email = email.toLowerCase().trim();
-  next();
-};
+
 
 // Auth Routes
 router.post("/firebase/signup", authLimiter, validateFirebaseAuth, handleFirebaseSignup);
-router.post("/firebase/login", authLimiter, validateFirebaseAuth, handleFirebaseLogin);
+router.post("/firebase/login", authLimiter, validateAuthInput, handleFirebaseLogin);
 router.post("/logout", logout);
 
 // User Profile Routes
@@ -80,7 +57,7 @@ router.put("/admin/update-user/:id", protectRoute, updateUser);
 
 // Health check
 router.get("/health", (req, res) => {
-  res.status(200).json({ 
+  res.status(200).json({
     status: "healthy",
     timestamp: new Date().toISOString() 
   });
