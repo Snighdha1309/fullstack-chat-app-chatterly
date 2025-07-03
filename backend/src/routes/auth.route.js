@@ -39,7 +39,30 @@ const validateAuthInput = (req, res, next) => {
   req.body.email = email.toLowerCase().trim();
   next();
 };
-
+const validateFirebaseAuth = (req, res, next) => {
+  const { email, firebaseUid, fullName } = req.body;
+  
+  if (!email || !email.includes("@")) {
+    return res.status(400).json({ 
+      success: false,
+      message: "Please provide a valid email address" 
+    });
+  }
+  if (!firebaseUid) {
+    return res.status(400).json({ 
+      success: false,
+      message: "Firebase UID is required" 
+    });
+  }
+  if (!fullName) {
+    return res.status(400).json({ 
+      success: false,
+      message: "Full name is required" 
+    });
+  }
+  req.body.email = email.toLowerCase().trim();
+  next();
+};
 
 
 // Auth Routes
