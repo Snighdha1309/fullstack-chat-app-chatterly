@@ -91,51 +91,79 @@ export const handleFirebaseSignup = async (req, res) => {
  * - Finds user by Firebase UID and email
  * - Issues JWT cookie
  */
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../lib/firebaseconfig.js";
+
 export const handleFirebaseLogin = async (req, res) => {
-  const { email, firebaseUid } = req.body;
+  const { email, password } = req.body;
+
+  // 1. Input Validation (replaces your first middleware)
+  if (!email?.trim() || !password) {
+    return res.status(400).json({
+      success: false,
+      message: "Email and password are required"
+    });
+  }
 
   try {
-    // Basic validation
-    if (!email?.trim() || !firebaseUid?.trim()) {
-      return res.status(400).json({
+    // 2. Firebase Authentication
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
+      email.trim(),
+      password
+    );
+    const firebaseUser = userCredential.user;
+
+    // 3. Optional: Email Verification Check
+    if (!firebaseUser.emailVerified) {
+      return res.status(403).json({
         success: false,
-        message: "Email and Firebase UID are required"
+        message: "Please verify your email first"
       });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
-    const user = await User.findOne({ email: normalizedEmail });
+    // 4. MongoDB Sync
+    const user = await User.findOneAndUpdate(
+      { firebaseUid: firebaseUser.uid }, // Find by Firebase UID
+      { lastLogin: new Date() }, // Update last login
+      { new: true } // Return updated doc
+    );
 
-    if (!user || user.firebaseUid !== firebaseUid) {
-      return res.status(401).json({ 
+    if (!user) {
+      return res.status(404).json({
         success: false,
-        message: "Invalid credentials" 
+        message: "User not registered in our system"
       });
     }
 
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save();
-
-    // Generate token
-    const token = generateToken(user._id, res);
+    // 5. Generate JWT
+    const token = generateToken(user._id);
     setAuthCookie(res, token);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       user: filterUserData(user),
       token
     });
 
   } catch (error) {
-    console.error("[FIREBASE LOGIN ERROR]", error);
-    res.status(500).json({ 
+    // 6. Firebase Error Handling
+    const errorMap = {
+      "auth/invalid-email": "Invalid email format",
+      "auth/wrong-password": "Incorrect password",
+      "auth/user-not-found": "Email not registered",
+      "auth/too-many-requests": "Too many attempts. Try again later"
+    };
+
+    const message = errorMap[error.code] || "Login failed";
+    const statusCode = error.code ? 401 : 500;
+
+    return res.status(statusCode).json({
       success: false,
-      message: "Login failed" 
+      message
     });
   }
 };
-
 // ======================
 // COMMON AUTH HANDLERS
 // ======================
