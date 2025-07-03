@@ -55,7 +55,8 @@ const LoginPage = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: firebaseUser.email,
-          firebaseUid: firebaseUser.uid
+          firebaseUid: firebaseUser.uid,
+           password: formData.password
         })
       });
 
