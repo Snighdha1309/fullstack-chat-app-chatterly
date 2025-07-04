@@ -19,24 +19,35 @@ const authLimiter = rateLimit({
   message: "Too many attempts, please try again later",
 });
 
-// Input validation middlewares
-const validateAuthInput = (req, res, next) => {
-  const { email, password } = req.body;
+/**
+ * Middleware to validate Firebase ID Token
+ * - Checks for token existence
+ * - Verifies token structure (basic format check)
+ * - Doesn't verify with Firebase yet (that happens in controller)
+ */
+const validateFirebaseToken = (req, res, next) => {
+  // 1. Check if token exists in request
+  const { idToken } = req.body;
   
-  if (!email || !email.includes("@")) {
+  if (!idToken) {
     return res.status(400).json({ 
       success: false,
-      message: "Please provide a valid email address" 
+      message: "Firebase ID token is required" 
     });
   }
 
-  if (!password || password.length < 6) {
-    return res.status(400).json({ 
+  // 2. Basic token format validation (optional but recommended)
+  // Firebase ID tokens are JWTs with 3 parts separated by dots
+  const tokenParts = idToken.split('.');
+  if (tokenParts.length !== 3) {
+    return res.status(400).json({
       success: false,
-      message: "Wrong password" 
+      message: "Invalid token format"
     });
   }
-  req.body.email = email.toLowerCase().trim();
+
+  // 3. Attach to request and proceed
+  req.firebaseToken = idToken; // Optional: attach for easy access
   next();
 };
 const validateFirebaseAuth = (req, res, next) => {
@@ -67,7 +78,7 @@ const validateFirebaseAuth = (req, res, next) => {
 
 // Auth Routes
 router.post("/firebase/signup", authLimiter, validateFirebaseAuth, handleFirebaseSignup);
-router.post("/firebase/login", authLimiter, validateAuthInput, handleFirebaseLogin);
+router.post("/firebase/login", authLimiter, validateFirebaseToken, handleFirebaseLogin);
 router.post("/logout", logout);
 
 // User Profile Routes
