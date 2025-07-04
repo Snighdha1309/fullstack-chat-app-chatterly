@@ -94,9 +94,8 @@ export const handleFirebaseSignup = async (req, res) => {
  * - Issues JWT cookie
  */
 export const handleFirebaseLogin = async (req, res) => {
-  const auth = getAuth();
-await auth.verifyIdToken(idToken); // Admin SDK method
-  const { idToken } = req.body; // From Firebase client SDK
+  // First, get the idToken from the request body
+  const { idToken } = req.body;
 
   if (!idToken) {
     return res.status(400).json({ 
@@ -106,8 +105,9 @@ await auth.verifyIdToken(idToken); // Admin SDK method
   }
 
   try {
-    // 1. Verify Firebase token
-    const decodedToken = await auth.verifyIdToken(idToken);
+    // 1. Verify Firebase token using the pre-initialized adminAuth
+    // (Make sure you've imported adminAuth from your firebase-admin config)
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
     const { uid, email, email_verified } = decodedToken;
 
     // 2. Check email verification
@@ -137,9 +137,18 @@ await auth.verifyIdToken(idToken); // Admin SDK method
 
   } catch (error) {
     console.error("[FIREBASE LOGIN ERROR]", error);
+    
+    // More specific error handling
+    let message = "Authentication failed";
+    if (error.code === 'auth/id-token-expired') {
+      message = "Token expired. Please login again.";
+    } else if (error.code === 'auth/argument-error') {
+      message = "Invalid token";
+    }
+
     res.status(401).json({ 
       success: false, 
-      message: "Authentication failed" 
+      message 
     });
   }
 };
