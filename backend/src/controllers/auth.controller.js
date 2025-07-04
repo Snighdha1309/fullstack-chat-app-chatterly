@@ -2,12 +2,8 @@ import User from "../models/user.model.js";
 import { generateToken } from "../lib/utils.js";
 // Constants
 import { setAuthCookie } from "./auth.helper.js"; 
-
+import { adminAuth } from '../lib/firebaseadmin.js';
 import { getAuth } from "firebase-admin/auth";
-
-// Later in your code:
-const auth = getAuth();
-await auth.verifyIdToken(idToken); // Admin SDK method
 const filterUserData = (user) => ({
   _id: user._id,
   fullName: user.fullName,
@@ -98,6 +94,8 @@ export const handleFirebaseSignup = async (req, res) => {
  * - Issues JWT cookie
  */
 export const handleFirebaseLogin = async (req, res) => {
+  const auth = getAuth();
+await auth.verifyIdToken(idToken); // Admin SDK method
   const { idToken } = req.body; // From Firebase client SDK
 
   if (!idToken) {
