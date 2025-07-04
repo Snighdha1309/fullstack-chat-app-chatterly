@@ -2,7 +2,7 @@ import User from "../models/user.model.js";
 import { generateToken } from "../lib/utils.js";
 // Constants
 import { setAuthCookie } from "./auth.helper.js"; 
-<<<<<<< HEAD
+
 import { getAuth } from "firebase-admin/auth";
 
 // Later in your code:
@@ -17,19 +17,6 @@ const filterUserData = (user) => ({
   createdAt: user.createdAt
 });
 
-=======
-import { auth } from "..../frontend/src/lib/firebaseconfig.js"; // ← Backend config
-import { signInWithEmailAndPassword } from "firebase/auth";
-const filterUserData = (user) => ({
-  _id: user._id,
-  fullName: user.fullName,
-  email: user.email,
-  profilePic: user.profilePic,
-  role: user.role,
-  createdAt: user.createdAt
-});
-
->>>>>>> 8b379e4db4046beecf2a3c68cc4bc5cfc1943259
 // ======================
 // FIREBASE AUTH HANDLERS
 // ======================
@@ -110,113 +97,51 @@ export const handleFirebaseSignup = async (req, res) => {
  * - Finds user by Firebase UID and email
  * - Issues JWT cookie
  */
-
-
-<<<<<<< HEAD
-
 export const handleFirebaseLogin = async (req, res) => {
-  const { email, password } = req.body;
+  const { idToken } = req.body; // From Firebase client SDK
 
-  // 1. Input Validation (unchanged)
-=======
-export const handleFirebaseLogin = async (req, res) => {
-  const { email, password } = req.body;
-
-  // 1. Input Validation (replaces your first middleware)
->>>>>>> 8b379e4db4046beecf2a3c68cc4bc5cfc1943259
-  if (!email?.trim() || !password) {
-    return res.status(400).json({
-      success: false,
-      message: "Email and password are required"
+  if (!idToken) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "Firebase ID token is required" 
     });
   }
 
   try {
-<<<<<<< HEAD
-    // 2. Firebase Authentication - NEW IMPLEMENTATION
-    const auth = getAuth();
-    const userRecord = await auth.getUserByEmail(email.trim());
-    
-    // 3. Email Verification Check (unchanged but now uses Admin SDK)
-    if (!userRecord.emailVerified) {
-=======
-    // 2. Firebase Authentication
-    const userCredential = await signInWithEmailAndPassword(
-      auth,
-      email.trim(),
-      password
-    );
-    const firebaseUser = userCredential.user;
+    // 1. Verify Firebase token
+    const decodedToken = await auth.verifyIdToken(idToken);
+    const { uid, email, email_verified } = decodedToken;
 
-    // 3. Optional: Email Verification Check
-    if (!firebaseUser.emailVerified) {
->>>>>>> 8b379e4db4046beecf2a3c68cc4bc5cfc1943259
-      return res.status(403).json({
-        success: false,
-        message: "Please verify your email first"
+    // 2. Check email verification
+    if (!email_verified) {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Please verify your email first" 
       });
     }
 
-<<<<<<< HEAD
-    // 4. MongoDB Sync (unchanged)
+    // 3. Sync with MongoDB
     const user = await User.findOneAndUpdate(
-      { firebaseUid: userRecord.uid }, // Now using userRecord.uid
+      { firebaseUid: uid },
       { lastLogin: new Date() },
-      { new: true }
-=======
-    // 4. MongoDB Sync
-    const user = await User.findOneAndUpdate(
-      { firebaseUid: firebaseUser.uid }, // Find by Firebase UID
-      { lastLogin: new Date() }, // Update last login
-      { new: true } // Return updated doc
->>>>>>> 8b379e4db4046beecf2a3c68cc4bc5cfc1943259
+      { new: true, upsert: true } // Create user if not exists
     );
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not registered in our system"
-      });
-    }
-
-<<<<<<< HEAD
-    // 5. Generate JWT (unchanged)
-=======
-    // 5. Generate JWT
->>>>>>> 8b379e4db4046beecf2a3c68cc4bc5cfc1943259
+    // 4. Generate JWT
     const token = generateToken(user._id);
     setAuthCookie(res, token);
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       user: filterUserData(user),
       token
     });
 
   } catch (error) {
-<<<<<<< HEAD
-    // 6. Updated Error Handling for Admin SDK
-    const errorMap = {
-      "auth/user-not-found": "Email not registered",
-      "auth/invalid-email": "Invalid email format",
-      "auth/too-many-requests": "Too many attempts. Try again later"
-      // Note: No password validation here anymore
-=======
-    // 6. Firebase Error Handling
-    const errorMap = {
-      "auth/invalid-email": "Invalid email format",
-      "auth/wrong-password": "Incorrect password",
-      "auth/user-not-found": "Email not registered",
-      "auth/too-many-requests": "Too many attempts. Try again later"
->>>>>>> 8b379e4db4046beecf2a3c68cc4bc5cfc1943259
-    };
-
-    const message = errorMap[error.code] || "Login failed";
-    const statusCode = error.code ? 401 : 500;
-
-    return res.status(statusCode).json({
-      success: false,
-      message
+    console.error("[FIREBASE LOGIN ERROR]", error);
+    res.status(401).json({ 
+      success: false, 
+      message: "Authentication failed" 
     });
   }
 };
