@@ -33,52 +33,56 @@ const LoginPage = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!validateForm()) return;
+  if (!validateForm()) return;
 
-    setIsLoggingIn(true);
+  setIsLoggingIn(true);
 
-    try {
-      // Step 1: Sign in with Firebase
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        formData.email.toLowerCase().trim(),
-        formData.password
-      );
+  try {
+    // Step 1: Sign in with Firebase
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
+      formData.email.toLowerCase().trim(),
+      formData.password
+    );
 
-      const firebaseUser = userCredential.user;
+    // Step 1.5: Get the ID token from Firebase
+    const idToken = await userCredential.user.getIdToken();
 
-      // Step 2: Send UID and email to backend for MongoDB sync
-      const response = await fetch("/api/auth/firebase/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: firebaseUser.email,
-          firebaseUid: firebaseUser.uid,
-           password: formData.password
-        })
-      });
+    // Step 2: Send ID token to backend for verification and MongoDB sync
+    const response = await fetch("/api/auth/firebase/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }) // Now properly sending the token
+    });
 
-      const result = await response.json();
+    const result = await response.json();
 
-      if (result.success) {
-        // Step 3: Save token and user info in Zustand store
-        login(result.user, result.token); // Adjust based on how your store works
+    if (result.success) {
+      // Step 3: Save token and user info in Zustand store
+      login(result.user, result.token);
 
-        toast.success("Login successful!");
-        navigate("/", { replace: true }); // Prevent back navigation to login
-      } else {
-        toast.error(result.message || "Login failed");
-      }
-
-    } catch (error) {
-      console.error("Firebase or backend login error:", error.message);
-      toast.error("Invalid email or password");
-    } finally {
-      setIsLoggingIn(false);
+      toast.success("Login successful!");
+      navigate("/", { replace: true });
+    } else {
+      toast.error(result.message || "Login failed");
     }
-  };
+
+  } catch (error) {
+    console.error("Firebase or backend login error:", error.message);
+    // More specific error messages
+    if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+      toast.error("Invalid email or password");
+    } else if (error.code === 'auth/too-many-requests') {
+      toast.error("Account temporarily locked due to many failed attempts");
+    } else {
+      toast.error("Login failed. Please try again.");
+    }
+  } finally {
+    setIsLoggingIn(false);
+  }
+};
 
   return (
     <div className="h-screen grid lg:grid-cols-2">
