@@ -58,26 +58,37 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  
+
   // Login with credentials normalization
-  login: async ({ email, password }) => {
-    set({ isLoggingIn: true, error: null });
-    try {
-      const res = await axiosInstance.post("/auth/login", {
-        email: email.toLowerCase().trim(),
-        password
-      }, {
-        withCredentials: true
-      });
+  // login: async ({ email, password }) => {
+  //   set({ isLoggingIn: true, error: null });
+  //   try {
+  //     const res = await axiosInstance.post("/auth/login", {
+  //       email: email.toLowerCase().trim(),
+  //       password
+  //     }, {
+  //       withCredentials: true
+  //     });
       
-      set({ authUser: res.data });
-      get().connectSocket();
-      return { success: true, data: res.data };
-    } catch (error) {
-      return get().handleError(error, "Invalid credentials");
-    } finally {
-      set({ isLoggingIn: false });
-    }
-  },
+  //     set({ authUser: res.data });
+  //     get().connectSocket();
+  //     return { success: true, data: res.data };
+  //   } catch (error) {
+  //     return get().handleError(error, "Invalid credentials");
+  //   } finally {
+  //     set({ isLoggingIn: false });
+  //   }
+  // },
+
+  // remove async api call from the function because zustand is seting only user and token
+
+  login: (user, token) => {
+  set({ authUser: { ...user, token } });
+  get().connectSocket();
+  set({ isLoggingIn: false });
+  return { success: true };
+},
 
   // Logout with socket cleanup
   logout: async () => {

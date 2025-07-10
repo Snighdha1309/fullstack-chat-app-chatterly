@@ -51,7 +51,7 @@ const LoginPage = () => {
     const idToken = await userCredential.user.getIdToken();
 
     // Step 2: Send ID token to backend for verification and MongoDB sync
-    const response = await fetch("/api/auth/firebase/login", {
+    const response = await fetch("http://localhost:5001/api/auth/firebase/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken }) // Now properly sending the token
@@ -59,7 +59,10 @@ const LoginPage = () => {
 
     const result = await response.json();
 
+    console.log("result",result);
+
     if (result.success) {
+      
       // Step 3: Save token and user info in Zustand store
       login(result.user, result.token);
 

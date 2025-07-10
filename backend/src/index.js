@@ -1,5 +1,15 @@
+
 import express from "express";
 import dotenv from "dotenv";
+
+const result = dotenv.config();
+if (result.error) {
+  console.error("Dotenv error:", result.error);
+}
+
+console.log(process.env);
+
+
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import path from "path";
@@ -11,9 +21,15 @@ import authRoutes from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
 import adminRoutes from "./routes/admin.routes.js"; // New admin routes
 
-dotenv.config();
+console.log(">> index.js started");
+
+
+
+
+
 
 const PORT = process.env.PORT || 5001;
+console.log(PORT);
 const __dirname = path.resolve();
 
 // Basic Security Middleware
@@ -23,6 +39,7 @@ app.use(
     credentials: true,
   })
 );
+
 app.use(express.json());
 app.use(cookieParser());
 

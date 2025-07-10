@@ -1,6 +1,13 @@
 // config/firebase-admin.js
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import dotenv from "dotenv";
+const result = dotenv.config();
+
+ const client_id =process.env.FIREBASE_CLIENT_ID;
+
+ console.log("client_id",client_id);
+
 
 // Construct service account object from environment variables
 const firebaseServiceAccount = {
@@ -13,8 +20,11 @@ const firebaseServiceAccount = {
   auth_uri: process.env.FIREBASE_AUTH_URI,
   token_uri: process.env.FIREBASE_TOKEN_URI,
   auth_provider_x509_cert_url: process.env.FIREBASE_CERT_URL,
-  client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL
+  client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
+  
 };
+
+
 
 // Initialize Firebase Admin SDK
 const firebaseAdminApp = initializeApp({

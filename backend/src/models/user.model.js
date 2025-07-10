@@ -11,50 +11,64 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       validate: {
         validator: validator.isEmail,
-        message: "Please provide a valid email"
-      }
+        message: "Please provide a valid email",
+      },
     },
     fullName: {
       type: String,
       required: [true, "Full name is required"],
       trim: true,
       maxlength: [50, "Name cannot exceed 50 characters"],
-      minlength: [2, "Name must be at least 2 characters"]
+      minlength: [2, "Name must be at least 2 characters"],
     },
     firebaseUid: {
       type: String,
       required: [true, "Firebase UID is required"],
-      unique: true
+      unique: true,
     },
+    //here if this exit than this.fullname 
     profilePic: {
       type: String,
       default: function () {
-        return `https://ui-avatars.com/api/?name=${encodeURIComponent(this.fullName)}&background=random`;
-      }
+        const name = this && this.fullName ? this.fullName : "User";
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(
+          name
+        )}&background=random`;
+      },
     },
+    //here The function assumes this.fullName always exists and is a valid string.
+    //if this not exits than undefined error throw by js
+    // profilePic: {
+    //   type: String,
+    //   default: function () {
+    //     return `https://ui-avatars.com/api/?name=${encodeURIComponent(
+    //       this.fullName
+    //     )}&background=random`;
+    //   },
+    // },
     role: {
       type: String,
       enum: ["user", "admin", "moderator"],
-      default: "user"
+      default: "user",
     },
     lastLogin: Date,
     active: {
       type: Boolean,
       default: true,
-      select: false
+      select: false,
     },
     twoFactorEnabled: {
       type: Boolean,
-      default: false
+      default: false,
     },
     twoFactorSecret: {
       type: String,
-      select: false
+      select: false,
     },
     authProvider: {
       type: String,
-      default: "firebase"
-    }
+      default: "firebase",
+    },
   },
   {
     timestamps: true,
@@ -64,9 +78,9 @@ const userSchema = new mongoose.Schema(
         delete ret.twoFactorSecret;
         delete ret.firebaseUid;
         return ret;
-      }
+      },
     },
-    toObject: { virtuals: true }
+    toObject: { virtuals: true },
   }
 );
 
@@ -94,7 +108,9 @@ userSchema.pre(/^find/, function (next) {
 userSchema.virtual("avatar").get(function () {
   return (
     this.profilePic ||
-    ` https://ui-avatars.com/api/?name=${this.fullName.split(" ").join("+")}&background=random`
+    ` https://ui-avatars.com/api/?name=${this.fullName
+      .split(" ")
+      .join("+")}&background=random`
   );
 });
 

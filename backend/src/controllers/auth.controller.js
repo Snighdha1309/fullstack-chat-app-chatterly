@@ -55,6 +55,17 @@ export const handleFirebaseSignup = async (req, res) => {
       profilePic: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName.trim())}`
     });
 
+
+    
+    console.log("userdata",newUser);
+    res.status(201).json({
+      success:true,
+      console:"user created successfully",
+      user:newUser,
+    })
+
+    
+
     // Generate token
     const token = generateToken(newUser._id, res);
     setAuthCookie(res, token);
@@ -118,12 +129,24 @@ export const handleFirebaseLogin = async (req, res) => {
       });
     }
 
+    const safeFullName = (decodedToken.name && decodedToken.name.trim()) || (email && email.trim()) || "User";
+const safeEmail = (email && email.trim()) || `user_${uid}@noemail.local`;
+
     // 3. Sync with MongoDB
-    const user = await User.findOneAndUpdate(
-      { firebaseUid: uid },
-      { lastLogin: new Date() },
-      { new: true, upsert: true } // Create user if not exists
-    );
+   const user = await User.findOneAndUpdate(
+  { firebaseUid: uid },
+  {
+    $set: {
+      lastLogin: new Date(),
+      fullName: safeFullName,
+      email: safeEmail,
+      firebaseUid: uid,
+      authProvider: "firebase",
+      profilePic: decodedToken.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(safeFullName)}`
+    }
+  },
+  { new: true, upsert: true, setDefaultsOnInsert: true }
+);
 
     // 4. Generate JWT
     const token = generateToken(user._id);

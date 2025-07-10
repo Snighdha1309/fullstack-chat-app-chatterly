@@ -68,7 +68,7 @@ const SignupPage = () => {
         clearInterval(interval);
 
         // 4. Only proceed to backend AFTER verification
-        const response = await fetch('/api/auth/firebase/signup', {
+        const response = await fetch('http://localhost:5001/api/auth/firebase/signup', {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -79,6 +79,7 @@ const SignupPage = () => {
         });
 
         const result = await response.json();
+        console.log("signup result",result);
 
         if (result.success) {
           login(result.user, result.token); // Zustand store update
