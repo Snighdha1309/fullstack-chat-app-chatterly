@@ -1,15 +1,6 @@
-
 import express from "express";
 import dotenv from "dotenv";
-
-const result = dotenv.config();
-if (result.error) {
-  console.error("Dotenv error:", result.error);
-}
-
-console.log(process.env);
-
-
+dotenv.config();
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import path from "path";
@@ -21,15 +12,9 @@ import authRoutes from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
 import adminRoutes from "./routes/admin.routes.js"; // New admin routes
 
-console.log(">> index.js started");
-
-
-
-
 
 
 const PORT = process.env.PORT || 5001;
-console.log(PORT);
 const __dirname = path.resolve();
 
 // Basic Security Middleware
@@ -39,7 +24,6 @@ app.use(
     credentials: true,
   })
 );
-
 app.use(express.json());
 app.use(cookieParser());
 
@@ -51,8 +35,8 @@ app.use("/api/admin", adminRoutes); // Add this line for admin routes
 // Production Setup
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
-  
-  app.get("/{*any}", (req, res) => {
+
+  app.get("*", (req, res) => {
     res.sendFile(path.join(__dirname, "../frontend/dist", "index.html"));
   });
 }

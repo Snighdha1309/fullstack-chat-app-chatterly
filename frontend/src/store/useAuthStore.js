@@ -3,7 +3,7 @@ import { axiosInstance } from "../lib/axios.js";
 import { io } from "socket.io-client";
 import { useChatStore } from "./useChatStore";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ||
                  (import.meta.env.MODE === "development" ? "http://localhost:5001" : "/");
 
 export const useAuthStore = create((set, get) => ({
@@ -16,7 +16,6 @@ export const useAuthStore = create((set, get) => ({
   socket: null,
   error: null,
 
-  // Unified error handler
   handleError: (error, defaultMessage) => {
     const message = error.response?.data?.message || defaultMessage;
     console.error("Auth Error:", message, error);
@@ -24,10 +23,10 @@ export const useAuthStore = create((set, get) => ({
     return { success: false, message };
   },
 
-  // Auth state check
+  // ✅ FIXED: Changed endpoint to /auth/profile instead of /auth/check
   checkAuth: async () => {
     try {
-      const res = await axiosInstance.get("/auth/check");
+      const res = await axiosInstance.get("/auth/profile", { withCredentials: true });
       if (res.data) {
         set({ authUser: res.data });
         get().connectSocket();
@@ -40,7 +39,6 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // Signup with improved validation
   signup: async (data) => {
     set({ isSigningUp: true, error: null });
     try {
@@ -58,42 +56,50 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  
+  login: async ({ email, password }) => {
+    set({ isLoggingIn: true, error: null });
+    try {
+      const res = await axiosInstance.post("/auth/login", {
+        email: email.toLowerCase().trim(),
+        password
+      }, {
+        withCredentials: true
+      });
 
-  // Login with credentials normalization
-  // login: async ({ email, password }) => {
-  //   set({ isLoggingIn: true, error: null });
-  //   try {
-  //     const res = await axiosInstance.post("/auth/login", {
-  //       email: email.toLowerCase().trim(),
-  //       password
-  //     }, {
-  //       withCredentials: true
-  //     });
-      
-  //     set({ authUser: res.data });
-  //     get().connectSocket();
-  //     return { success: true, data: res.data };
-  //   } catch (error) {
-  //     return get().handleError(error, "Invalid credentials");
-  //   } finally {
-  //     set({ isLoggingIn: false });
-  //   }
-  // },
+      set({ authUser: res.data });
+      get().connectSocket();
+      return { success: true, data: res.data };
+    } catch (error) {
+      return get().handleError(error, "Invalid credentials");
+    } finally {
+      set({ isLoggingIn: false });
+    }
+  },
 
-  // remove async api call from the function because zustand is seting only user and token
+  // ✅ NEW: Firebase login method
+  loginWithFirebase: async (firebaseUser) => {
+    set({ isLoggingIn: true, error: null });
 
-  login: (user, token) => {
-  set({ authUser: { ...user, token } });
-  get().connectSocket();
-  set({ isLoggingIn: false });
-  return { success: true };
-},
+    try {
+      const idToken = await firebaseUser.getIdToken();
 
-  // Logout with socket cleanup
+      const res = await axiosInstance.post("/auth/firebase/login", { idToken }, {
+        withCredentials: true
+      });
+
+      set({ authUser: res.data });
+      get().connectSocket();
+      return { success: true, data: res.data };
+    } catch (error) {
+      return get().handleError(error, "Firebase login failed");
+    } finally {
+      set({ isLoggingIn: false });
+    }
+  },
+
   logout: async () => {
     try {
-      await axiosInstance.post("/auth/logout");
+      await axiosInstance.post("/auth/logout", null, { withCredentials: true });
       get().disconnectSocket();
       set({ authUser: null, onlineUsers: [] });
       return { success: true };
@@ -102,7 +108,6 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // Profile update
   updateProfile: async (data) => {
     set({ isUpdatingProfile: true, error: null });
     try {
@@ -116,7 +121,6 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // Socket management
   connectSocket: () => {
     const { authUser, socket } = get();
     if (!authUser?._id || socket?.connected) return;
@@ -124,13 +128,12 @@ export const useAuthStore = create((set, get) => ({
     const newSocket = io(BASE_URL, {
       transports: ["websocket"],
       auth: {
-        token: authUser.token // Assuming your backend uses token auth
+        token: authUser.token
       },
       reconnectionAttempts: 3,
       reconnectionDelay: 1000
     });
 
-    // Socket event handlers
     newSocket
       .on("connect", () => {
         console.log("✅ Socket connected:", newSocket.id);
@@ -139,14 +142,13 @@ export const useAuthStore = create((set, get) => ({
       .on("disconnect", () => console.warn("⚠️ Socket disconnected"))
       .on("connect_error", (err) => {
         console.error("❌ Socket error:", err.message);
-        setTimeout(() => get().connectSocket(), 5000); // Reconnect after 5s
+        setTimeout(() => get().connectSocket(), 5000);
       })
       .on("getOnlineUsers", (userIds) => set({ onlineUsers: userIds }));
 
     set({ socket: newSocket });
   },
 
-  // Proper socket cleanup
   disconnectSocket: () => {
     const { socket } = get();
     if (socket) {
@@ -156,10 +158,9 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // Clear auth state
-  clearAuth: () => set({ 
-    authUser: null, 
+  clearAuth: () => set({
+    authUser: null,
     error: null,
-    onlineUsers: [] 
+    onlineUsers: []
   })
 }));

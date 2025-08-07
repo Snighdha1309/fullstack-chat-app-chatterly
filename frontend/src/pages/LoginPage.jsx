@@ -1,20 +1,20 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Loader2, Mail, Lock,MessageSquare } from "lucide-react";
+import { Eye, EyeOff, Loader2, Mail, Lock, MessageSquare } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuthStore } from "../store/useAuthStore";
 import AuthImagePattern from "../components/AuthImagePattern";
 import { Link } from "react-router-dom";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../lib/firebaseconfig"; // ✅ Use the exported one
+import { auth } from "../lib/firebaseconfig";
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const login = useAuthStore((state) => state.login); // This should eventually set the user/token
+  const loginWithFirebase = useAuthStore((state) => state.loginWithFirebase);
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({ 
-    email: "", 
-    password: "" 
+  const [formData, setFormData] = useState({
+    email: "",
+    password: ""
   });
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [validationError, setValidationError] = useState("");
@@ -33,59 +33,50 @@ const LoginPage = () => {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!validateForm()) return;
+    if (!validateForm()) return;
 
-  setIsLoggingIn(true);
+    setIsLoggingIn(true);
 
-  try {
-    // Step 1: Sign in with Firebase
-    const userCredential = await signInWithEmailAndPassword(
-      auth,
-      formData.email.toLowerCase().trim(),
-      formData.password
-    );
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        formData.email.toLowerCase().trim(),
+        formData.password
+      );
 
-    // Step 1.5: Get the ID token from Firebase
-    const idToken = await userCredential.user.getIdToken();
+      const idToken = await userCredential.user.getIdToken();
 
-    // Step 2: Send ID token to backend for verification and MongoDB sync
-    const response = await fetch("http://localhost:5001/api/auth/firebase/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }) // Now properly sending the token
-    });
+      const response = await fetch("/api/auth/firebase/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken })
+      });
 
-    const result = await response.json();
+      const result = await response.json();
 
-    console.log("result",result);
+      if (result.success) {
+        loginWithFirebase(userCredential.user);
+        toast.success("Login successful!");
+        navigate("/", { replace: true });
+      } else {
+        toast.error(result.message || "Login failed");
+      }
 
-    if (result.success) {
-      
-      // Step 3: Save token and user info in Zustand store
-      login(result.user, result.token);
-
-      toast.success("Login successful!");
-      navigate("/", { replace: true });
-    } else {
-      toast.error(result.message || "Login failed");
+    } catch (error) {
+      console.error("Firebase or backend login error:", error.message);
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        toast.error("Invalid email or password");
+      } else if (error.code === 'auth/too-many-requests') {
+        toast.error("Account temporarily locked due to too many failed attempts");
+      } else {
+        toast.error("Login failed. Please try again.");
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
-
-  } catch (error) {
-    console.error("Firebase or backend login error:", error.message);
-    // More specific error messages
-    if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-      toast.error("Invalid email or password");
-    } else if (error.code === 'auth/too-many-requests') {
-      toast.error("Account temporarily locked due to many failed attempts");
-    } else {
-      toast.error("Login failed. Please try again.");
-    }
-  } finally {
-    setIsLoggingIn(false);
-  }
-};
+  };
 
   return (
     <div className="h-screen grid lg:grid-cols-2">
@@ -167,9 +158,9 @@ const LoginPage = () => {
               </div>
             </div>
 
-            <button 
-              type="submit" 
-              className="btn btn-primary w-full" 
+            <button
+              type="submit"
+              className="btn btn-primary w-full"
               disabled={isLoggingIn}
             >
               {isLoggingIn ? (
@@ -185,7 +176,7 @@ const LoginPage = () => {
 
           <div className="text-center">
             <p className="text-base-content/60">
-              Don't have an account?{" "}
+              Don’t have an account?{" "}
               <Link to="/signup" className="link link-primary">
                 Create account
               </Link>
